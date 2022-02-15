@@ -1,0 +1,112 @@
+%%% Local Variables: ***
+%%% mode:latex ***
+%%% TeX-Master: "tesi-dott.tex"  ***
+%%% End: ***
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% Newcommand defintions
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% Common colors
+%
+\newcommand{\cred}[1]{\textcolor{red}{#1}}
+\newcommand{\cblue}[1]{\textcolor{blue}{#1}}
+\newcommand{\cyellow}[1]{\textcolor{yellow}{#1}}
+\newcommand{\ccyan}[1]{\textcolor{cyan}{#1}}
+\newcommand{\cmage}[1]{\textcolor{magenta}{#1}}
+\newcommand{\cgreen}[1]{\textcolor{green}{#1}}
+\newcommand{\cblack}[1]{\textcolor{black}{#1}}
+\newcommand{\cwhite}[1]{\textcolor{white}{#1}}
+%
+% Change the citation style
+%
+\makeatletter
+\renewcommand{\@cite}[1]{
+{$\!\! ^{(#1)}$}}
+\makeatother
+%{\renewcommand\@biblabel[1]{$^{#1}$}}
+\renewcommand{\thefootnote}{\alph{footnote}}
+\renewcommand{\thempfootnote}{\fnsymbol{mpfootnote}}
+%\renewcommand{\showlabelsfont}{\small\slfamily}
+
+%
+%Slash aligned column 
+%
+\newcommand{\addtoc}[2]{\addcontentsline{toc}{#1}{\numberline{}#2}}
+\newcommand{\etal}{{\emph{et al.}\ }}
+\newcommand{\degr}{^{\circ}}
+
+%
+% Latin words
+%
+\newcommand{\Abinitio}{\emph{Ab initio}}
+\newcommand{\abinitio}{\emph{ab initio}}
+\newcommand{\invacuo}{\emph{in vacuo}}
+
+%
+% D2h and subgroups command
+%
+\newcommand{\Dtwoh}{\ensuremath{D_{2h}}}
+\newcommand{\Ctwov}{\ensuremath{C_{2v}}}
+\newcommand{\Ctwoh}{\ensuremath{C_{2h}}}
+\newcommand{\Ctwo}{\ensuremath{C_{2}}}
+\newcommand{\Ci}{\ensuremath{C_{i}}}
+\newcommand{\Cs}{\ensuremath{C_{s}}}
+\newcommand{\Dtwo}{\ensuremath{D_{2}}}
+\newcommand{\Cone}{\ensuremath{C_{1}}}
+
+%
+% Some useful boxes
+%
+\newcommand{\cbw}[1]{\colorbox{white}{#1}}
+
+\newcommand{\orbital}{\ensuremath{\varphi}}
+\newcommand{\blockfunc}{\ensuremath{u}}
+\newcommand{\density}{\ensuremath{\hat{\rho}}}
+\newcommand{\nuclear}{\ensuremath{\hat{V}_{nuc}}}
+\newcommand{\coulomb}{\ensuremath{\hat{J}}}
+\newcommand{\xc}{\ensuremath{\hat{V}_{xc}}}
+\newcommand{\exchange}{\ensuremath{\hat{K}}}
+\newcommand{\potential}{\ensuremath{\hat{V}}}
+\newcommand{\kinetic}{\ensuremath{\hat{T}}}
+\newcommand{\perturbation}{\ensuremath{\hat{h}}}
+\newcommand{\effPot}{\ensuremath{v_{eff}}}
+\newcommand{\nucPot}{\ensuremath{v_{nuc}}}
+\newcommand{\elPot}{\ensuremath{v_{el}}}
+\newcommand{\xcPot}{\ensuremath{v_{xc}}}
+\newcommand{\fockMat}{\ensuremath{F}}
+\newcommand{\fockOper}{\ensuremath{\hat{F}}}
+\newcommand{\poisson}{\ensuremath{P(r-r')}}
+\newcommand{\Poisson}[1]{\ensuremath{\hat{P}\Big[#1\Big]}}
+\newcommand{\helmholtz}{\ensuremath{G^{\mu}(r-r')}}
+\newcommand{\Helmholtz}[1]{\ensuremath{\hat{G}_i\left[#1\right]}}
+\newcommand{\Helm}{\ensuremath{\hat{G}}}
+\newcommand{\hamiltonian}{\ensuremath{\hat{h}}}
+\newcommand{\pOper}{\ensuremath{\hat{p}}}
+
+\newcommand{\pert}[2]{\ensuremath{#1^{(#2)}}}
+\newcommand{\HopB}{\ensuremath{\pert{\hat{\boldsymbol{h}}}{B}}}
+\newcommand{\HopM}{\ensuremath{\pert{\hat{\boldsymbol{h}}}{M_K}}}
+\newcommand{\HopBB}{\ensuremath{\pert{\hat{\boldsymbol{h}}}{B,B}}}
+\newcommand{\HopMB}{\ensuremath{\pert{\hat{\boldsymbol{h}}}{M_K,B}}}
+\newcommand{\HopBM}{\ensuremath{\pert{\hat{\boldsymbol{h}}}{B,M_K}}}
+\newcommand{\HmatB}{\ensuremath{\pert{\boldsymbol{h}}{B}}}
+\newcommand{\HmatM}{\ensuremath{\pert{\boldsymbol{h}}{M_K}}}
+\newcommand{\HmatBB}{\ensuremath{\pert{\boldsymbol{h}}{B,B}}}
+\newcommand{\HmatMB}{\ensuremath{\pert{\boldsymbol{h}}{M_K,B}}}
+\newcommand{\HmatBM}{\ensuremath{\pert{\boldsymbol{h}}{B,M_K}}}
+
+\newcommand{\angmom}{\ensuremath{\boldsymbol{\hat{l}}}}
+\newcommand{\rvec}{\ensuremath{\boldsymbol{r}}}
+
+% Misc
+\newcommand{\ud}{\ensuremath{\,\mathrm{d}}}
+
+% Picture stuff
+\newcommand{\defimgw}[2]{\pgfdeclareimage[width=#1]{#2}{#2}}
+\newcommand{\defimgh}[2]{\pgfdeclareimage[height=#1]{#2}{#2}}
+
+\newcommand*{\diff}{\mathop{}\!\mathrm{d}} % Differential
+\newcommand*{\deriv}[3][]{% Derivative
+\frac{\diff^{#1}#2}{\diff #3^{#1}}}
