@@ -56,6 +56,7 @@ Benchmark calculations at the Hartree Fock level show that MRChem is able to des
 
 \section{The multiwavelet method for Quantum Chemistry}
 
+Only a superficial overview of the method is given here, as more detailed descriptions can be found elsewhere REF.
 
 The Kohn Sham or HF equations can be written
 
@@ -348,7 +349,8 @@ The time for a similar SCF cycle may vary by of the order of 10\%. This accuracy
 \caption{\label{fig01}. Computation times divided by number of orbitals for one SCF cycle for different sizes alkanes: $C_{20}H_{42}$, $C_{40}H_{82}$, $C_{80}H_{162}$,$ C_{120}H_{242}$,$ C_{160}H_{322}$,$ C_{200}H_{402}$,$ C_{240}H_{482}$,$ C_{280}H_{562}$. Each molecule is computed using 8 compute-nodes(Each compute-node can use up to 128 cpu cores). Total time refers to the time spent in one Hartree-Fock SCF cycle, when it is close to convergence. Exchange time refers to the time spent for computing the Exchange contributions. Coulomb time refers to the time used for computing the Coulomb potential of each orbital, summing them up and distributing the total potential to all the compute nodes. Kinetic time refers to the time spent for computing the kinetic energy of each orbital  and Helmholtz time the time for applying the Helmholtz operator. Constant time per orbital would indicate linear scaling.}
 \end{figure}
 
-Figure \ref{fig01} show computation times divided by the number of orbitals for alkanes of different lengths. For a linear scaling method, the time per orbital should approximately constant. The time per orbital less than doubles going from the smallest (81 orbitals) to the largest (1121 orbitals) alkane, i.e close to linear scaling. % quadratic scaling would multiply the time by 13.8 
+Figure \ref{fig01} show computation times divided by the number of orbitals for alkanes of different lengths. For a linear scaling method, the time per orbital should be approximately constant.  The time per orbital less than doubles going from the smallest (81 orbitals) to the largest (1121 orbitals) alkane, i.e close to linear scaling. 
+% quadratic scaling would multiply the time by 13.8 
 
 %The time consuming part of the Coulomb potential, is to gather the partial Coulomb potentials from each process, and distribute the total potential to all the processes again. The size (in terms of memory) of the potential will grow linearly with the size of the system. In addition the gather and scatter is done using a binary tree approach in our present implementation (this does not fully exploit the network parallelism, and better schemes can be implemented). The time for the Coulomb calculations is then formally growing as N ln2 N at present. In a local representation, this distribution of the full potential will not be necessary (but this is not yet implemented). At present the Coulomb and nuclear potential are treated independently. Since they largely cancel each other, a better approach would be to consider the sum of them directly, at least for remote nuclei and orbitals.
 
@@ -356,9 +358,9 @@ Figure \ref{fig01} show computation times divided by the number of orbitals for 
 
 The clearly most time consuming term is the exchange term. The other terms are showing even better linear scaling properties.
 
-The number of non-negligible exchange contributions should ideally grow linearly with system size for large enough systems, and therefore the exchange computation time per orbital should be constant. However exchange contributions are the result of the sum of terms, and if the number of terms increase the accuracy of each individual term must be increased in order to achieve a fixed absolute precision in the final result. In our implementation, we scale the required precision of the individual terms by a factor proportional to the square root of the number of orbitals.
+The number of non-negligible exchange contributions should ideally grow linearly with system size for large enough systems, and therefore the exchange computation time per orbital should be constant. However exchange contributions are the result a the sum of terms, and if the number of terms increase the accuracy of each individual term must be increased in order to achieve a fixed absolute precision in the final result. In our implementation, this is taking care of by increasing the required precision of the individual terms by a factor proportional to the square root of the number of orbitals. This is the main reason why our run times are not exhibiting a clearer linear trend.
 
-Note that the definition of what one means by "linear scaling" is not the same in this paper and in the field of traditional Gaussian set. In the latter one usually mean a fixed sized basis set for a subsystem, and then the number (N) of subsystems is growing. If the runtime is increasing linearly with the number of subsystems, one usually assume that linear scaling is achieved. In this paper the runtime for a fixed absolute precision is studied for different sizes. Since a fixed error $\epsilon$ per subsystem will lead to a total error on the system which grows as $\epsilon \sqrt{N} $ with system size, the accuracy per subsystem must then be increased to achieve a fixed absolute error for the entire system. This is the main reason why our runtimes are not ex
+%Note that the definition of what one means by "linear scaling" is not the same in this paper and in the field of traditional Gaussian set. In the latter one usually mean a fixed sized basis set for a subsystem, and then the number (N) of subsystems is growing. If the runtime is increasing linearly with the number of subsystems, one usually assume that linear scaling is achieved. In this paper the runtime for a fixed absolute precision is studied for different sizes. Since a fixed error $\epsilon$ per subsystem will lead to a total error on the system which grows as $\epsilon \sqrt{N} $ with system size, the accuracy per subsystem must then be increased to achieve a fixed absolute error for the entire system. This is the main reason why our runtimes are not ex
 \subsection{Scaling with precision}
 
 %Table TO UPDATE!
@@ -374,7 +376,7 @@ Valinomycine 1E-8  & 531.0& 163.9& 12.9&32.7& 852.6 \\
   Gramicidin 1E-6& 9.1& 0.5& 0.2& 0.4&11.4\\
   Gramicidin 1E-7& 24.6&3.1& 0.6& 2.2&  35.7\\
     \end{tabular}
-    \caption{Time for different terms in the SCF cycle (val seconds 4864 cores, gram 4284 cores minutes)}
+    \caption{Time for different terms in the SCF cycle (val seconds 16 nodes, gram 4284 cores minutes)}
     \label{tab:times}
 \end{table*}
 
