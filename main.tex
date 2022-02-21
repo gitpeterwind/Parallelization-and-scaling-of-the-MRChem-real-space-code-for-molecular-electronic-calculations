@@ -66,10 +66,10 @@ The Kohn Sham or HF equations can be written
 \end{equation}
 
 \begin{equation}
-  F_{ij} = \langle \psi_i |{-\frac{1}{2}\nabla^2+V}| {\phi_j}\rangle
+  F_{ij} = \langle \psi_i |{-\frac{1}{2}\nabla^2+V}| {\psi_j}\rangle
 \end{equation}
 
-In the HF case $V=V_n+J-K$, and in the Kohn Sham equations $V=V_n+J+V_{xc}$
+In the HF case $V=V_{nuc}+J-K$, and in the Kohn Sham equations $V=V_n+J+V_{xc}$, where $V_{nuc}$, $J$, $K$ , $V_{xc}$ are the nuclear, Coulomb, Exchange and exchange-correlation potentials respectively. $F$ is the Fock matrix and $-\frac{1}{2}\nabla^2 = T$ is the kinetic operator.
 
 Compared to more standard LCAO methods, there are a few limitations introduced by the wavelet approach:
 
@@ -146,8 +146,6 @@ In our implementation, the value of the density is evaluated at each point in sp
 
 There is one Helmholtz operator associated to each orbital energy, however each Helmholtz operator is applied to a single orbital.
 
-\subsubsection{Other}
-In addition, the orbitals need to be orthonormalized, and combined (orbital rotation).
 
 \subsubsection{Basic mw operations required}
 
@@ -180,7 +178,7 @@ git, properties, Vampyr ...
 MW calculations can be computationally demanding. Both the total amount of elementary operations and the large amount of memory required and the capacity of the network are important bottlenecks. 
 
 In practice a computer cluster is required for calculations on large systems.
-For example the representation of one orbital is described typically by of the order of 10-500MB of data (see section \ref{sizes}). Usually several sets of orbitals are required in the scf process (previous iteration, right hand size of equations etc.). If 1000 orbitals are described, this will often require more memory than is locally available on a compute node of a cluster. Therefore it is required to store the data in a distributed way. At the same time, the equations require to access all pair of orbitals, i.e. all the data must at some point be accessible locally.
+For example the representation of one orbital is described typically by of the order of 10-500MB of data (see section \ref{sizes}). Usually several sets of orbitals are required in the scf process (previous iteration, right hand size of equations etc.). If 1000 orbitals are described, this will often require more memory than is locally available on a compute node of a cluster. Therefore it is required to store the data in a distributed way. At the same time, the equations require to access all pairs of orbitals, i.e. all the data must at some point be accessible locally.
 
 In order to solve the equation in parallel, the problem needs to be partitioned into smaller parts that can be computed with as little transfer of data as possible between the different parts.
 
@@ -192,7 +190,7 @@ Although localized and canonical orbitals represent the same wave function, the 
 Because of the inherent adaptiveness of the mw approach, multiplying two orbitals, or applying an operator onto an orbital can be done more efficiently if the orbitala are localized in space. Even if the orbitals have non-negligible values in a large portion of space, the adaptiveness properties will make sure that the calculations in the parts where the orbitals are small are done at a coarser level of accuracy, and therefore faster than in the regions with larger values.
 
 
-\subsection{Adaptivity and implicit screening}
+\subsection{Adaptivity}
 %explanation of implicit screening mechanisms within MRA? 
 % i.e. MRCPP tree calculation using norm threshold
 
@@ -287,7 +285,7 @@ The underlying libraries will then find a suitable place in the "bank" to store 
 
 \subsubsection{Task manager} 
 In a localized orbital approach, many of the elements of the matrix $\braket{\phi_i|{\hat O} \phi_j}$ will be small. Since the method is inherently adaptive using the MRCPP library, the small elements will be faster to compute. In order to fully exploit this feature, a dynamical distribution of tasks is required.  
-In practice the matrix $\braket{\phi_i|{\hat O} \phi_j}$ is partitioned into blocks. Each block represent one task to be performed by a "worker". When a "worker" is done with one task it can ask for a new task from the "task manager" until all the tasks are finished.
+In practice the matrix $\braket{\phi_i|{\hat O} \phi_j}$ is partitioned into blocks. Each block represent one task to be performed by a "worker". In a local representation, each node is simply one task. When a "worker" is done with one task it can ask for a new task from the "task manager" until all the tasks are finished.
 
 One single MPI process is reserved for managing the task queue. The only purpose of this process is to keep account of the tasks that have been assigned and the tasks left, and distribute unsolved tasks to the workers. It does only send and receive small amounts of data at a time (few bytes) and will therefore in practice not be saturated with requests.
 
@@ -421,6 +419,7 @@ An increase in the number of coefficients describing the orbitals will clearly i
 \subsection{Implicit screening}
 %example of histogram of timing for each exchange terms? many terms very fast, few slow.
 %example of histogram of timing for orbital rotation?
+%could also show how much time is used for matrix mult compared to transfer time
 
 \subsection{Comparison with ORCA REF and LSDalton REF}
 \begin{table*}[t]
@@ -487,15 +486,14 @@ SIGMA2, nn9330k, Hylleraas
 
 Goedecker, S. (1999). Linear scaling electronic structure methods. Reviews of Modern Physics, 71(4), 1085–1123. doi:10.1103/revmodphys.71.1085 
 
-BigDFT method
-https://aip-scitation-org.mime.uit.no/doi/full/10.1063/1.2949547
-
 Real space methods:
  DOI: 10.1039/C5CP90198G (Editorial) Phys. Chem. Chem. Phys., 2015, 17, 31357-31359
 Real-space numerical grid methods in quantum chemistry
 Luca Frediani and Dage Sundholm
 https://pubs.rsc.org/en/content/articlehtml/2015/cp/c5cp90198g?page=search
 
+
+%https://pubs.rsc.org/en/journals/journalissues/cp#!issueid=cp017047&type=current&issnprint=1463-9076
 
 MP2:
 https://aip.scitation.org/doi/10.1063/1.5141880
