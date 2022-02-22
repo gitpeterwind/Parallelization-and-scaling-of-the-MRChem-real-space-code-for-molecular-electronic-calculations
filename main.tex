@@ -10,7 +10,7 @@
 
 \title{The MRChem MRA code for molecular electronic calculations. Performance and scaling properties}
 
-\author{Peter Wind, Magnar Bjørve, Anders Brakestad, Luca Frediani, Gabriel Gerez, Stig Rune Jensen, Roberto Di Remigio}
+\author{Peter Wind, Magnar Bjørve, Anders Brakestad, Gabriel Gerez, Stig Rune Jensen, Roberto Di Remigio and Luca Frediani}
 
 %\affilition{Department of Chemistry, UiT - The Arctic University of Norway, N-9037 Tromsø, Norway}
 
@@ -359,6 +359,8 @@ The time for a similar SCF cycle may vary by less than 10\%. This accuracy shoul
 Figure \ref{fig01} show computation times divided by the number of orbitals for alkanes of different lengths. For a linear scaling method, the time per orbital should be approximately constant.  The time per orbital less than doubles going from the smallest (81 orbitals) to the largest (1121 orbitals) alkane. This shows that the scaling with system size is mostly linear, with a small non-linear contribution.  
 % quadratic scaling would multiply the time by 13.8 
 
+%define precisions mw5, mw6 ...
+
 %The time consuming part of the Coulomb potential, is to gather the partial Coulomb potentials from each process, and distribute the total potential to all the processes again. The size (in terms of memory) of the potential will grow linearly with the size of the system. In addition the gather and scatter is done using a binary tree approach in our present implementation (this does not fully exploit the network parallelism, and better schemes can be implemented). The time for the Coulomb calculations is then formally growing as N ln2 N at present. In a local representation, this distribution of the full potential will not be necessary (but this is not yet implemented). At present the Coulomb and nuclear potential are treated independently. Since they largely cancel each other, a better approach would be to consider the sum of them directly, at least for remote nuclei and orbitals.
 
 %The smallest alkanes are not able to make an optimal utilization of all the available cpus
@@ -421,7 +423,8 @@ An increase in the number of coefficients describing the orbitals will clearly i
 %example of histogram of timing for orbital rotation?
 %could also show how much time is used for matrix mult compared to transfer time
 
-\subsection{Comparison with ORCA REF and LSDalton REF}
+\subsection{Comparison with ORCA  and LSDalton  }
+
 \begin{table*}[t]
     \centering
     \begin{tabular}{lllll}
@@ -447,7 +450,7 @@ results using a pc-1, pc-2 and pc-3 basis set (the pc-4 basis was out of reach).
 
 Even at the lowest precision (mw4), the results have the same quality as the pc-3 basis, but at a fraction of the computational cost. 
 
-It should be noted that the run times given for ORCA and LSDalton could probably be improved by tuning different input parameters, as we did not try to further optimize all the settings. Still the main picture should not be affected.
+It should be noted that the run times given for ORCA\cite{orca} and LSDalton\cite{lsdalton} could probably be improved by tuning different input parameters, as we did not try to further optimize all the settings. Still the main picture should not be affected.
 
 
 
@@ -461,15 +464,17 @@ Specially the large memory footprint is a serious bottleneck that should be impr
 
 It is remarkable that even if the actual basis used in MRChem can be several order of magnitudes larger than what is used in large GTO basis, the computation times are still competitive. We believe this is due to the fact that modern computers are extremely efficient when it comes to performing a large number of mathematical operations simultaneously, and the parts which are most time consuming are usually the transfer of data from main memory into cache, and transfer of data between compute nodes. The ability to partition the problem into independent parts is becoming more important than minimizing the overall number of mathematical operations. In this respect, the MRA framework has an advantage because of the orthogonality of the initial basis. See also the discussion about the relationship between HPC and Computational Chemistry in \cite{penchoff2021} and \cite{ratcliff2016}.
 
-Also for DFT methods, it has already been shown (Bischoff 2019) that MRA methods can be competitive wrt computation time.
+GTO methods have been developed at a time where computer power was a scarce resource. In modern computers the total number of mathematical operations that can be performed is huge. For a complex scientific software, the total number of mathematical operations performed will usually be small compared to the maximum theoretically available on a supercomputer. This is even more true for GPU based computers. Therefore the focus of modern software should shift from minimizing the number of operations, towards finding new ways of partitioning the algorithm in independent parts.
+
+Also for DFT methods, it has already been shown \cite{bischoff2019} MOREREF that MRA methods can be competitive wrt computation time.
 
 %Optimizing large computations has two complementary sides: on one hand the code should use efficiently the hardware available (CPU, network, memory) and on the other hand, the code should be able to scale to a large number of CPUs. In our approach we have mainly focused on the second part so far, since modern supercomputer are growing exponentially in size (Moore's law), and we expect in the future the main limitation to be the ability of software to make use of this large sizes, rather than to use them optimally.
 
 
 For low or medium precision, the computer resources required are still larger than traditional basis set approaches. The results obtained with our implementation show that for higher precision the wavelet approach is competitive in term of computation times.
 
-%to be expanded?
-The ability to better control precision is a definitive advantage of the method. 
+The ability to better control precision is a definitive advantage of the method. In methods that use traditional basis sets, the user needs to choose the type of basis, based on what is the property of interest and the precision required. But this is by no mean always a straightforward task and require some degree of expertize. The resulting accuracy is often difficult to assess. What's more the results will suffer from BSSE REF, which complicate both the interpretation and the procedure.
+In MRA method, the precision is chosen as a single number that can be chosen on a continuous scale. The resulting precision will be independent of the property of interest. %is this true?
 
 
 
@@ -516,7 +521,11 @@ Jakob S. Kottmann1,a), Florian A. Bischoff1,b), and Edward F. Valeev
 \bibitem[Ratcliff (2016)]{ratcliff2016}Laura E. Ratcliff, Stephan Mohr, Georg Huhs, Thierry Deutsch, Michel Masella, Luigi Genovese  https://doi.org/10.1002/wcms.1290 Challenges in large scale quantum mechanical calculations
 
 
-\bibitem[penchoff (2021)]{penchoff2021}https://pubs.acs.org/doi/full/10.1021/bk-2021-1388.ch001  HPC challenges: An Introduction to High Performance Computing and Its Intersection with Advances in Modeling Rare Earth Elements and Actinides
+\bibitem[penchoff (2021)]{penchoff2021} https://pubs.acs.org/doi/full/10.1021/bk-2021-1388.ch001  HPC challenges: An Introduction to High Performance Computing and Its Intersection with Advances in Modeling Rare Earth Elements and Actinides
+ 
+\bibitem[ORCA (2020)]{orca} F. Neese, F. Wennmohs, U. Becker, and C. Riplinger, “The ORCA quantum chemistry program package”, J. Chem. Phys. 152, 224108 (2020). https://doi.org/10.1063/5.0004608
+ 
+\bibitem[LSDalton (2014)]{lsdalton} K. Aidas, C. Angeli, K. L. Bak, V. Bakken, R. Bast, L. Boman, O. Christiansen, R. Cimiraglia, S. Coriani, P. Dahle, E. K. Dalskov, U. Ekström, T. Enevoldsen, J. J. Eriksen, P. Ettenhuber, B. Fernández, L. Ferrighi, H. Fliegl, L. Frediani, K. Hald, A. Halkier, C. Hättig, H. Heiberg, T. Helgaker, A. C. Hennum, H. Hettema, E. Hjertenæs, S. Høst, I.-M. Høyvik, M. F. Iozzi, B. Jansik, H. J. Aa. Jensen, D. Jonsson, P. Jørgensen, J. Kauczor, S. Kirpekar, T. Kjærgaard, W. Klopper, S. Knecht, R. Kobayashi, H. Koch, J. Kongsted, A. Krapp, K. Kristensen, A. Ligabue, O. B. Lutnæs, J. I. Melo, K. V. Mikkelsen, R. H. Myhre, C. Neiss, C. B. Nielsen, P. Norman, J. Olsen, J. M. H. Olsen, A. Osted, M. J. Packer, F. Pawlowski, T. B. Pedersen, P. F. Provasi, S. Reine, Z. Rinkevicius, T. A. Ruden, K. Ruud, V. Rybkin, P. Salek, C. C. M. Samson, A. Sánchez de Merás, T. Saue, S. P. A. Sauer, B. Schimmelpfennig, K. Sneskov, A. H. Steindal, K. O. Sylvester-Hvid, P. R. Taylor, A. M. Teale, E. I. Tellgren, D. P. Tew, A. J. Thorvaldsen, L. Thøgersen, O. Vahtras, M. A. Watson, D. J. D. Wilson, M. Ziolkowski, and H. Ågren, "The Dalton quantum chemistry program system", WIREs Comput. Mol. Sci. 2014, 4:269–284 (doi:10.1002/wcms.1172)
 
 \end{thebibliography}
 \end{document}
