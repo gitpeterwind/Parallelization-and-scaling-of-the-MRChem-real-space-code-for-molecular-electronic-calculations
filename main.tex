@@ -401,7 +401,7 @@ Both steps are not specific to the multiwavelet approach, on the opposite, basis
 % The Journal of Chemical Physics 140, 204110 (2014); doi: 10.1063/1.4871876
 
 \section{Benchmark results}
-
+%\todo[inline]{PW: need to explain precision notation mw4, mw5...}
 In this section we will show how MRChem performs for some simple systems of different size. MRChem is still under development and the results shown here are just a snapshot of the present situation. The goal is not to determine the limitations of the model, but rather to show that at least in some cases it behaves as intended and that the development is going the right way.
 
 All the benchmark runs presented here were performed on "Betzy", a BullSequana XH2000 computer cluster, with 128 cores and 256 GiB memory per compute node, and infiniband HDR 100 interconnect REF?.
@@ -461,13 +461,13 @@ In table \ref{tab:prec} we have performed calculations with different precisions
     \centering
     \begin{tabular}{cccccccccc}
 &orbital size& Exchange &  Coulomb & Kinetic energy& Helmholtz & Total \\
- Valinomycine 1E-5& 49 & 71.4& 9.2& 2.7 & 7.4& 97.4\\
-Valinomycine 1E-6& 115 & 182.4& 25.3& 6.7 & 21.3&251.2\\
-Valinomycine 1E-7& 245 & 442.8& 78.8&17.1& 66.4&644.4  \\
+ Valinomycine mw5& 49 & 71.4& 9.2& 2.7 & 7.4& 97.4\\
+Valinomycine mw6& 115 & 182.4& 25.3& 6.7 & 21.3&251.2\\
+Valinomycine mw7& 245 & 442.8& 78.8&17.1& 66.4&644.4  \\
 %Valinomycine &1E-8  & 531.0& 163.9& 12.9&32.7& 852.6 \\ older run, different setup
- Gramicidin 1E-5&55&115&18& 4& 8& 164\\
-  Gramicidin 1E-6&136&312 & 46& 15 & 26& 429\\
-  Gramicidin 1E-7&306& 813&126& 28& 82& 1131\\ %cycle 4
+ Gramicidin mw5&55&115&18& 4& 8& 164\\
+  Gramicidin mw6&136&312 & 46& 15 & 26& 429\\
+  Gramicidin mw7&306& 813&126& 28& 82& 1131\\ %cycle 4
     \end{tabular}
     \caption{Time (in seconds) for different terms in the SCF cycle. Valinomycine using 16 compute nodes and gramicidin 64 compute nodes. The average size (in MB) for one orbital is also given.} %times for cycle 6. 12 MPI/cnode, 4 bank/cnode, 15 OMP
     \label{tab:prec}
@@ -599,7 +599,10 @@ For DFT methods, it had already been shown \cite{bischoff2019} MOREREF that MRA 
 For low or medium precision, the computer resources required are still larger than traditional basis set approaches. 
 
 
+
 It is fair to say that finite basis set method benefit from decades of development by thousands of scientists, while only a few groups are actually developing multiwavelet methods for quantum chemistry calculations. We can therefore expect that the potential for further optimizations of the method and extension of the range of application will still increase widely in the future.
+
+The advantages of the MRA approach is clearer for large systems and/or high precision. We have shown that such large systems are now affordable on large computers.
 
 %say something about status for correlated methods?
 
