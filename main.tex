@@ -1,360 +1,388 @@
-\documentclass[%
- aip,
-% jmp,
-% bmf,
-% sd,
-% rsi,
- amsmath,amssymb,
-%preprint,%
- reprint,%
-%author-year,%
-%author-numerical,%
-% Conference Proceedings
-]{revtex4-1}
-
-\usepackage{graphicx}% Include figure files
-\usepackage{dcolumn}% Align table columns on decimal point
-\usepackage{bm}% bold math
-%\usepackage[mathlines]{lineno}% Enable numbering of text and display math
-%\linenumbers\relax % Commence numbering lines
+\documentclass[journal=jctcce, manuscript=article]{achemso}
 
 \usepackage[utf8]{inputenc}
-\usepackage[T1]{fontenc}
-\usepackage{mathptmx}
-\usepackage{etoolbox}
 
-%PW additional packages
+\setlength {\marginparwidth }{2cm}
+
+\usepackage[table]{xcolor}
+\usepackage[version=4]{mhchem}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\graphicspath{{img/}}
+ \DeclareGraphicsExtensions{.pdf} %png for low res. pdf for high res. I also have svg as well but other packages needed
+\usepackage{caption}
+\usepackage{subcaption}
+ \DeclareCaptionSubType*[arabic]{figure}
 \usepackage{braket}
+\usepackage{multicol}
+\usepackage{multirow}
 \usepackage{todonotes}
+\setlength{\columnsep}{1cm}
+\usepackage{booktabs}
+\usepackage[nohyperlinks,nolist]{acronym}
+\usepackage{siunitx}
+\usepackage{mathtools}
+% to submit to the arXiv:
+% 1. uncomment the following
+% 2. clear cached files
+% 3. recompile from scratch
+%\usepackage[newfloat,finalizecache=true,cachedir=.]{minted}
+% then:
+% 4. comment the line with the finalizecache option
+% 5. uncomment the line with the frozencache option
+% 6. recompile (to check that it works)
+%\usepackage[newfloat,frozencache=true,cachedir=.]{minted}
+\usepackage[newfloat]{minted}
+%\captionsetup[listing]{position=top}
+\setminted{
+  fontsize=\footnotesize,
+  xleftmargin=\parindent,
+  xrightmargin=\parindent,
+  breaklines,
+  frame=lines
+}
+\BeforeBeginEnvironment{minted}{\vspace{-7pt}}
+\AfterEndEnvironment{minted}{\vspace{-7pt}}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{tablefootnote}
+\usepackage{multirow}
+%\usepackage{hyperref}
 
-%% Apr 2021: AIP requests that the corresponding 
-%% email to be moved after the affiliations
-\makeatletter
-\def\@email#1#2{%
- \endgroup
- \patchcmd{\titleblock@produce}
-  {\frontmatter@RRAPformat}
-  {\frontmatter@RRAPformat{\produce@RRAP{*#1\href{mailto:#2}{#2}}}\frontmatter@RRAPformat}
-  {}{}
-}%
-\makeatother
-\begin{document}
+\input{acronyms}
+\input{newcommands}
 
-\preprint{AIP/123-QED}
+\title{The MRChem multiresolution analysis code for molecular electronic structure calculations: performance and scaling properties}
 
-\title[MRChem]{The MRChem MRA code for molecular electronic calculations. Performance and scaling properties}
 \author{Peter Wind}
 \affiliation{Department of Chemistry, UiT - The Arctic University of Norway, N-9037 Tromsø, Norway}
-\author{Magnar Bjørve}
+\email{peter.wind@uit.no}
+
+\author{Magnar Bjørgve}
 \affiliation{Department of Chemistry, UiT - The Arctic University of Norway, N-9037 Tromsø, Norway}
+
 \author{Anders Brakestad}
 \affiliation{Department of Chemistry, UiT - The Arctic University of Norway, N-9037 Tromsø, Norway}
-\author{Gabriel Gerez}
+
+\author{Gabriel A. Gerez S.}
 \affiliation{Department of Chemistry, UiT - The Arctic University of Norway, N-9037 Tromsø, Norway}
+
 \author{Stig Rune Jensen}
 \affiliation{Department of Chemistry, UiT - The Arctic University of Norway, N-9037 Tromsø, Norway}
+\email{stig.r.jensen@uit.no}
+
 \author{Roberto Di Remigio Eikås}
-\affiliation{ENCCS Department of Information Technology, Uppsala University, Uppsala, Sweden}
-%To check Roberto affiliation
+\affiliation{Algorithmiq Ltd, Kanavakatu 3C, FI-00160 Helsinki, Finland}
+
 \author{Luca Frediani}
 \affiliation{Department of Chemistry, UiT - The Arctic University of Norway, N-9037 Tromsø, Norway}
+\email{luca.frediani@uit.no}
 
 
-
-
-\date{\today}
-
-\begin{abstract}
-MRChem is a MRA code for molecular electronic structure calculations, based on a multiwavelets adaptive basis representation. A description of the implementation strategy is provided. Benchmark calculations on systems comprising more than thousand orbitals at the HF level are analyzed, with an emphasis on scaling properties. 
-We show that some terms which formally scale as $~0(N^2)$, in effect have a better scaling because of the implicit screening introduced by the inherent adaptivity of the method. Comparison with traditional GTO based software, show that MRChem can be competitive with respect to computation time.
-
-\end{abstract}
+\begin{document}
 
 \maketitle
 
+\begin{abstract}
+MRChem is a code for molecular electronic structure calculations, based on a multiwavelet adaptive basis representation. We provide a description of our implementation strategy and several benchmark calculations. Systems comprising more than a thousand orbitals are investigated at the \acl{HF} level of theory, with an emphasis on scaling properties. 
+With our design, some terms which formally scale quadratically with the system size, in effect have a better scaling because of the implicit screening introduced by the inherent adaptivity of the method. Comparisons with traditional Gaussian-type orbitals based software, show that MRChem can be competitive with respect to performance.
+\end{abstract}
+
 \section{Introduction}
 
+\acp{GTO} and more generally \acp{LCAO}\cite{Jensen.2013.10.1002/wcms.1123} are well established as a standard for \emph{ab initio} molecular electronic structure calculations. As their shape is closely related to the electronic structure of atoms, even very small basis sets with only a few functions per \ac{MO} can give reasonable results for describing molecular properties. However, for extended systems the description of each orbital still requires the contributions from the entire basis in order to ensure orthogonality. Without further precautions, even when using localized orbitals, a large proportion of the coefficients will be very small for those systems.
 
-GTO and more generally MRA are well established as a standard for \emph{ab-initio} molecular electronic structure calculations. As their shape is closely related to the electronic structure of atoms, even very small basis sets (a few functions per orbital) can give reasonable results for describing molecular properties. However for extended systems the description of each orbital still requires the contributions from the entire basis in order to ensure orthogonality. Even when using localized orbitals, a large proportion of the coefficients will be very small for those systems.
+In a \ac{MRA} framework like \acp{MW}, the basis can adapt according to the function described (for an in-depth review of the \ac{MRA} method in the field of Quantum Chemistry, see Ref.~\citenum{Bischoff2019-mr}). The available basis is in principle infinite and complete, and, in practice, it is dynamically adapted to the local shape of the function and the required precision. This can require the real-space basis to comprise millions of elementary functions for each orbital. In this sense, the method starts with a big handicap compared to \ac{LCAO} basis sets. On the other hand, the exponential growth of available computational resources has in recent years enabled \ac{MRA} calculations on systems comprising thousands of atoms.\cite{Ratcliff2020-hk, Harrison2016-lo} 
 
-In a MRA framework, the basis can adapt according to the function described (for an in-depth review of the MRA method in the field of Quantum Chemistry, see \citep[]{bischoff2019}). The available basis is in principle infinite and complete, and the basis actually used is dynamically adapted to the local shape of the function and the required precision. However reasonable results can require the real-space basis to comprise millions of elementary functions for each orbital. In this sense, the method starts with a big handicap, compared to Gaussian basis sets.
+Two main challenges need to be addressed in order to achieve adequate performance: the large number of operations to perform and the large memory footprint. The former is addressed by limiting the numerical operations to those that are strictly necessary to achieve the requested precision: rigorous error control at each elementary operation is the main strength of a \ac{MW} approach, enabling effective screening. The latter is achieved by algorithmic design: beyond a certain system size, not all data can be stored in local (i.e. fast access) memory. 
+On modern computers, data access is generally more time consuming than the mathematical operations, especially if the data is not available locally.\footnote{The online interactive chart at \url{https://colin-scott.github.io/personal_website/research/interactive_latency.html} is useful to understand the relative performance of on-chip \emph{vs.} off-chip memory accesses. In particular, it shows how the evolution of memory chips has been lagging behind that of CPUs.} 
+The computer implementation must be able to copy large amounts of data efficiently between compute nodes and the algorithm must be devised to reuse the data already available locally, when possible. In this article, we will present the main implementation features of our \ac{MRA} code, MRChem \cite{mrchem}, to tackle those challenges, thus enabling calculations on large systems at the \ac{HF} level.
 
-The challenge is not only the large amount of operations needed to perform any mathematical transformation in this approach, but also the large memory footprint: beyond a certain system size, not all data can be stored in local (i.e. fast access) memory. On modern computers, data access is generally more time consuming than the mathematical operations itself, especially if the data is not available locally. The implementation must be able to efficiently copy large amounts of data between compute nodes and the algorithm must be devised so as to use or reuse the data already locally available when possible.
+Beyond the effective thresholding that screens numerically negligible operations, the large computational cost is addressed by parallelization either at the orbital level or through real space partitioning. This dual strategy allows to minimize the relative cost of communication and the overall computational costs. Further, the most intensive mathematical operations are expressed as matrix multiplications, which allows for optimal efficiency.  
+Using localized orbitals, the adaptivity of the \ac{MW} description will significantly reduce the computational effort required to compute the terms involving remote orbitals. This opens the way for a method that scales linearly with system size ($N$), where the linearity arises naturally from the methodology, rather than being obtained with \emph{ad hoc} techniques, such as fast-multipole methods \cite{GREENGARD1987325} for Fock matrix construction, or purification of the density matrix. \cite{Helgaker2000-yb}
 
-With the exponential development of available computational resources, it has now become possible to perform such MRA calculations on systems comprising 
-thousands of atoms \cite{ratcliff2020}, \cite{madness2016}. 
+The large memory requirement is addressed by storing the data in a distributed ``memory bank", where orbitals can be sent and received independently by any CPU. The total size of the memory bank is then only limited by the overall memory available on the entire computer cluster.
+Benchmark calculations at the \ac{HF} level show that MRChem is able to describe systems with thousands of electrons. The implementation exhibits near-linear scaling properties and it can also be competitive with state-of-the-art electronic structure software based on \ac{LCAO} methods.
 
-In this article, we will present the main implementation features of a MRA code, MRChem, which is capable of describing such large systems at the Hartree Fock or Density Functional Theory (DFT) level.  
+\section{Solving the Hartree--Fock equations with multiwavelets}
 
-The large memory requirement is addressed by storing the data in a distributed "memory bank", where orbitals can be sent and retrieved independently by any CPU. The total size of the memory bank is then only limited by overall memory available on the entire computer cluster.
-
-The large computational cost is addressed by parallelization either at the orbital level or through real space partitioning. This dual strategy allows to minimize the relative cost of communication and the overall computational costs. Further the most computational intensive parts are expressed as matrix multiplications, which allows for optimal efficiency.  
-
-The multiwavelet approach adapts the precision to the "smoothness" of the potential in a continuous way. The potential resulting from remote subsystems will locally be "smooth" and thereby only require a simplified (coarse grid) description. 
-
-Using localized orbitals the adaptivity of the multiwavelets description will significantly reduce the computational effort required to compute the terms involving remote orbitals. This opens the way for a linearly scaling method where the linearity arises naturally from the methodology, rather than being obtained by specific additional methods such as multipole interactions or purification of the density matrix \cite{trygve}.
-
-Benchmark calculations at the Hartree Fock level show that MRChem is able to describe systems with thousands of electrons, exhibits near-linear scaling properties and can also be competitive with state-of-the-art electronic structure software based on LCAO methods.
-
-
-\section{Solving the Hartree-Fock and Kohn-Sham equations with Multiwavelets}
-
-We consider the SCF equations common to the HF method and the KS equations of DFT:
-
-\begin{equation}\label{eq:differential-scf}
-  \left( -\frac{1}{2}\nabla^2 + V \right) \psi_i = \sum_{j_{occ}} F_{ij} \psi_j
+We consider the \ac{SCF} equations of the \ac{HF} method:
+\begin{equation}\label{eq:differential-SCF}
+  \left(T + V \right) \orbital_i = \sum_{j}^{N_{\mathrm{occ}}} F_{ij} \orbital_j,
 \end{equation}
-
 where the Fock matrix elements $F_{ij}$ are obtained as
 \begin{equation}\label{eq:fock-matrix-definition}
-  F_{ij} = \braket{ {\psi_i}|{-\frac{1}{2}\nabla^2+V}|{\psi_j}}
+  F_{ij} = \Braket{ {\orbital_i}|{T+V}|{\orbital_j}}.
 \end{equation}
-
-In the above equations, $T = -\frac{1}{2}\nabla^2$ is the kinetic energy operator, and the potential $V$ contains the nuclear-electron attraction $V_{nuc}$, the Coulomb repulsion $J$, the exact exchange $K$ and, in case of DFT, the exchange and correlation potential $V_{XC}$. 
-
-To solve the SCF equations within a MW framework, it is necessary to rewrite the differential equation \ref{eq:differential-scf} as an integral equation:
-\begin{equation}\label{eq:integral-scf}
-\psi_i = -2 H^{\mu_i}\left[V\psi_i - \sum_{j_{occ} \ne i} F_{ij} \psi_j\right]
+In the above equations, $T = -\frac{1}{2}\nabla^2$ is the kinetic
+energy operator, and the potential $V$ contains the nuclear-electron
+attraction $V_{\mathrm{nuc}}$, the Coulomb repulsion $J$, and the exact exchange $K$. 
+To solve the \ac{SCF} equations within a \ac{MW} framework, we rewrite the differential equation \eqref{eq:differential-SCF} as an integral equation:
+\begin{equation}\label{eq:integral-SCF}
+\orbital_i = -2 H^{\mu_i}\star\left[V\orbital_i - \sum_{j \ne i}^{N_{\mathrm{occ}}} F_{ij} \orbital_j\right],
 \end{equation}
-This is obtained by recalling that the shifted kinetic energy operator $T-\epsilon$ has a closed-form Green's function:
+where $\star$ stands for the convolution product.
+This form is obtained by recalling that the shifted kinetic energy operator $T-\epsilon$ has a closed-form Green's function:\cite{Kalos1962-ok,Beylkin2005-kg}
 \begin{equation}\label{eq:helmholtz-green}
-    (T-\epsilon)^{-1} = 2 H^{\mu}(r) \quad H^{\mu}(r) = \frac{e^{-\mu r}}{r} \quad \mu = \sqrt{-2\epsilon} 
+    (T-\epsilon)^{-1} = 2 H^{\mu}, \quad H^{\mu} = \frac{e^{-\mu r}}{r}, \quad \mu = \sqrt{-2\epsilon},
 \end{equation}
-%Working in the integral form is both a necessity and an advantage. %\todo[inline]{PW: I do not see why it is an advantage; it would be much easier if we could use a basis with an exact second order derivative}
+By setting $\epsilon_i = F_{ii}$ and $\mu_i = \sqrt{-2F_{ii}}$, the diagonal term is excluded from the summation in Eq.~\eqref{eq:integral-SCF}.
 
-A multiwavelet representation does not have a predefined basis, and as such it is not possible to express functions and operators as vectors and matrices of a predefined size and the virtual space is to be regarded as infinite, although each function has a finite, truncated representation defined by the chosen precision threshold. It is therefore necessary to have working equations which allow the direct optimization of orbitals.
-At the same time one deals only with occupied orbitals and the Fock matrix in Equations \ref{eq:differential-scf} and \ref{eq:integral-scf} is therefore limited in size. 
+A \ac{MW} representation does not have a fixed basis. It is therefore not possible to express functions and operators as vectors and matrices of a predefined size, and the virtual space is to be regarded as infinite. Still, each function has a finite, truncated representation defined by the chosen precision threshold, but this representation will in general be different for different functions. It is therefore necessary to develop working equations which allow the direct optimization of orbitals. On the other hand, only occupied orbitals are constructed and the coupling through the Fock matrix in Eqs. \eqref{eq:differential-SCF} and \eqref{eq:integral-SCF} is therefore limited in size.
 
-Differential operators such as the Laplacian, also pose a fundamental problem for function representations which are not continuous, and a naive implementation leads to numerical instabilities. Robust approximation are nowadays available\cite{der-paper}, but for repeated iterations avoiding the use of the Laplacian operator is still an advantage. 
+Differential operators such as the Laplacian pose a fundamental problem for function representations which are not continuous, and a naive implementation leads to numerical instabilities. Robust approximations are nowadays available\cite{Anderson2019-bx}, but for repeated iterations avoiding the use of the Laplacian operator is still an advantage. This is the main reason for using the integral form in Eq.~\eqref{eq:helmholtz-green} rather than the differential form.
 
-%\todo[inline]{PW: The "preconditioner" is only useful if it accelerate the convergence. The ideal (or at least exact to second order) preconditioner is the inverse of the Hessian. In traditional methods one use good approximations for the inverse Hessian (diagonal or so), while the "preconditioner" we use is only a matrix that we put in front because it is the only way we can practically solve the equation, but is not optimized for being a good approximation of the inverse Hessian. I have therefore rewritten the text below}
+Additionally, it can be shown that iterating on the integral equation corresponds to a preconditioned steepest descent. Practical applications show that this approach is comparable in efficiency (as measured in the rate of convergence of the \ac{SCF} iterations) to more traditional methods.\cite{Harrison2004-fs}
 
-Additionally, it can be shown that iterating on the integral equation corresponds to a preconditioned steepest descent. Practical applications show that this approach is comparable in efficiency (as measured in the rate of convergence of the SCF iterations) to more traditional methods [REF?]. 
+\subsection{The basic operations in the SCF iterations}
 
-\subsection{The basic operations in the SCF iterations} %put complex conjugates!
+We will here list the main operations involved in the \ac{SCF} procedure, with emphasis on those aspects which are relevant for an efficient parallelization. For a detailed description of the \ac{SCF} optimization using \acp{MW}, the reader is referred to a recently published article which describes the algorithm in detail.\cite{Jensen:2022gg}
 
-For a detailed description of the SCF optimization using Multiwavelets, the reader is referred to a recently published article which describes the algorithm in detail [REF].
+The starting point is an initial set of orthonormal orbitals which define a Slater determinant for the given problem. A density is computed and the corresponding operators ($J$ and $K$) are built. The Fock matrix is computed as in Eq.~\eqref{eq:fock-matrix-definition}, which requires the application of the kinetic operator ($T$), nuclear potential ($V_{\mathrm{nuc}}$), Coulomb ($J$) and exchange ($K$) operators on each occupied orbital. The argument for the application of the integral operator is assembled (the square bracket in Eq.~\eqref{eq:integral-SCF}). Then the integral operator is applied separately for each orbital and the cycle is iterated after an orthonormalization step. Algorithm \ref{alg:SCF-iter} depicts these main steps.
 
-We will here list the main operations, with emphasis on those aspects which are relevant for an efficient parallelization.
+\begin{algorithm*}
+  \caption{Pseudocode for a single self-consistent field iteration. Each step takes advantage of adaptivity and screening, as described in Sections~\ref{sec:localvsorb} and~\ref{sec:adaptivity-screening}.} 
+  \label{alg:SCF-iter}
+  \begin{algorithmic}[1]
+    \Procedure{SCF iteration}{$\lbrace \orbital_{i}^{[n]}\rbrace_{i=1}^{N_{\mathrm{occ}}}$, $\epsilon$}
+    
+    \State Build Coulomb operator: $$J^{[n]} =
+    \sum_i \left[\frac{1}{|\rvec - \rvec^\prime|} \star\left(\orbital_{i}^{*,[n]}\orbital_{i}^{[n]}\right)\right]$$
+    \Comment{See Section~\ref{sec:compute-J}}
+    \State Build and apply Exchange operator: $$K^{[n]}\orbital_{j}^{[n]} = \sum_i \orbital_{i}^{[n]} \left[\frac{1}{|\rvec - \rvec^\prime|} \star\left(\orbital_{i}^{*,[n]}\orbital_{j}^{[n]}\right)\right]$$
+    \Comment{See Section~\ref{sec:compute-K}}
+    \State Assemble Fock matrix elements: $$F_{ij}^{[n]} = \Braket{\orbital_{i}^{[n]} | T + V_{\mathrm{nuc}} + J^{[n]} - K^{[n]}| \orbital_{j}^{[n]}}$$
+    \Comment{See Sections~\ref{sec:compute-T} and~\ref{sec:compute-V}}
+    \State Assemble right-hand side: $$V^{[n]}\orbital_{i}^{[n]} - \sum_{j\neq i}^{N_{\mathrm{occ}}}F_{ij}^{[n]}\orbital_{j}^{[n]}$$
+    \Comment{See Section~\ref{sec:rhs}}
+    \State Update orbitals: $$\orbital_{i}^{[n+1]} = -2H^{\mu_{i}}\star\left[ V^{[n]}\orbital_{i}^{[n]} - \sum_{j\neq i}^{N_{\mathrm{occ}}}F_{ij}^{[n]}\orbital_{j}^{[n]}\right]$$
+    \Comment{See Section~\ref{sec:rhs}}
+    \State Accelerator and localization: A new set of orbitals is created using results from previous iterations and localization. This step is optional and does not need to be performed at each iteration.
+    \EndProcedure
+  \end{algorithmic}
+\end{algorithm*}
 
-The starting point is an initial set of orthonormal orbitals which define a Slater determinant for the given problem. A density is computed and the corresponding operators ($J$, $K$ and $V_{XC}$) are built. The Fock matrix (Eq.~\ref{eq:fock-matrix-definition} is computed. This requires the application of the kinetic operator ($T$), nuclear  potential ($V_{nuc}$), Coulomb operator ($J$), and  the exchange potential ($K$) and/or the "exchange-correlation" potential from the density functional ($V_{xc}$) on each occupied orbital. The argument for the application of the integral operator is assembled (the square bracket in Eq.~\ref{eq:integral-scf}). Then the integral operator is applied and the cycle is iterated after a normalization step. 
-
-The elementary operations required for all those operations are
+The elementary mathematical operations required in each SCF iteration are:
 \begin{itemize}
-\item Construction of a MW function given an analytic or sampled function.
-\item Evaluation of the value of MW functions at a given point in space.
+\item Projection of functions in a \ac{MW} representation, given their analytic form or a representation on an arbitrary grid.\footnote{As long as a function is \emph{algorithmically} known, that is, there exists an implementation that given a point in the domain, for example $\mathbb{R}^{3}$, returns the function value, then it is possible to obtain its \ac{MW} representation.} 
+\item Evaluation of the \ac{MW} representation of functions at a given point in space.
 \item Multiplication of a function by a number.
-\item Sum of two MW functions.
-\item Product of two MW functions.
-\item Computation of the overlap integral between two MW functions.
-\item Application of a potential on a MW function (multiplication).
-\item Evaluation of the first order derivative of a MW function.
-\item Application of Coulomb operator on a MW function to obtain an electrostatic potential.
-\item Construction and application of the Helmholtz operator.
+\item Sum of two \ac{MW} functions.
+\item Product of two \ac{MW} functions.
+\item Computation of the overlap integral between two \ac{MW} functions.
+\item Application of a multiplicative operator, \emph{e.g.} a potential, on a \ac{MW} function.
+\item Evaluation of the first order derivative of a \ac{MW} function.
+\item Construction of the separated representation of the Poisson and Helmholtz kernels as \ac{MW} functions.
+\item Application of the Poisson or Helmholtz operators on a \ac{MW} function.
 \end{itemize}
 
+All these operations are provided by the MRCPP library\cite{mrcpp}. They must be composed to achieve a \ac{SCF} implementation, and they need to be integrated in a parallel framework to achieve good scaling and performance. In addition, the \ac{SCF} cycle requires schemes for orbital orthonormalization, rotation, and localization, Fock matrix diagonalization, history storage and utilization to enable convergence acceleration, using \emph{e.g.}~the \ac{KAIN} method.~\cite{Harrison2004-fs}
 
-All these operations are provided by the MRCPP library\cite{mrcpp} and must be composed to achieve a SCF implementation, and they must be integrated in a parallel framework to achieve good scaling and performance.
-
-In addition, the SCF cycle requires schemes for orbital orthonormalization, rotation, and localization, Fock matrix diagonalization, history storage and utilization to enable KAIN acceleration.~\cite{kain}
-
-\subsubsection{$T$}
-The application of the kinetic operator on a MW function is formally not well defined. However, it is possible to compute first derivatives provided repeated applications are avoided. The matrix elements of the kinetic energy operator can therefore be computed as:
+\subsubsection{The kinetic operator $T$}
+\label{sec:compute-T}
+The application of the kinetic energy operator on a \ac{MW} function is formally not well defined due to the discontinuities in the basis.\cite{Anderson2019-bx} However, when adopting an integral reformulation of the \ac{SCF} equations, the kinetic energy operator is required only in the  expectation value expressions as in Eq.~\eqref{eq:fock-matrix-definition}, and as shown by \citeauthor{Anderson2019-bx}~\cite{Anderson2019-bx} the original definition of the first-order derivative by \citeauthor{Alpert:2002cx}~\cite{Alpert:2002cx} is able to deliver sufficient precision in this specific case. On the basis of this consideration, and for computational efficiency, the matrix elements of the Laplacian operator are computed as inner products of orbital gradients:
 \begin{equation}
-  T_{ij} = -\frac{1}{2} \braket{\nabla \psi_i | \nabla \psi_j}
-\end{equation}
-Computing the matrix elements require therefore only the gradient followed by the inner product. This last step ensures that the resulting number is in practice accurate enough.\cite{derivative-paper}
-
-\subsubsection{$V_{nuc}$}
-
-\todo[inline]{I'm not quite sure I have understood this explanation...}
-\todo[inline]{PW: it is more explicit now, better?}
-
-The application of the nuclear potential (and possibly any additional external field) can be performed in two ways. Either the sum over nuclei is performed as a sum of matrix elements for the individual nuclei:
-\begin{equation}
-  V_{nuc} \phi_j = \sum_{k = nuclei} (V_k \phi_j)
+  \label{eq:kinetic-matrix}
+  T_{ij} = 
+  -\frac{1}{2} 
+  \Braket{\orbital_i | \nabla^2 \orbital_j} 
+  = 
+  \frac{1}{2} 
+  \Braket{\nabla \orbital_i | \nabla \orbital_j}.
 \end{equation}
 
-or the sum over the potentials is performed first, and the matrix elements evaluated at the end:
+It is possible to avoid the kinetic energy operator altogether \cite{Jensen:2022gg}, but in practice this complicates the algorithm to the point where the direct computation as in Eq.~\eqref{eq:kinetic-matrix} is to be preferred for large systems.
+
+\subsubsection{The nuclear potential $V_{\mathrm{nuc}}$}
+\label{sec:compute-V}
+The nuclear potential consists of a sum of contributions from the different nuclei. As such, applying it to a given orbital can be performed in two ways.
+
+\begin{description}
+\item[apply-then-sum] The potential from each nucleus $\alpha$ is applied to each orbital and the results summed up over all nuclei:
 \begin{equation}
-  V_{nuc} \phi_j = (\sum_{k = nuclei} V_k) \phi_j
+  V_{\mathrm{nuc}} \orbital_j = \sum_{\alpha}^{N_{\mathrm{atoms}}} \left(V_{\alpha} \orbital_j\right),
+\end{equation} 
+\item[sum-then-apply] The sum over the nuclei is performed first, followed by the multiplication with the given orbital:
+\begin{equation}
+V_{\mathrm{nuc}} \orbital_j = \left(\sum_{\alpha}^{N_{\mathrm{atoms}}} V_{\alpha}\right) \orbital_j.
 \end{equation}
-In our present implementation, the second form is used.
+\end{description}
 
-The total potential for all nuclei ($\sum_{k} V_k$) can be very large in terms of memory. It describes the potential over the entire space, whereas only the parts that overlap with the occupied orbitals are actually used. In the future we plan to adapt the accuracy according to the electronic density.
+The first approach requires $N_{\mathrm{atoms}}\times N_{\mathrm{occ}}$ function multiplications, followed by a summation of $N_{\mathrm{atoms}}$ terms. It also needs memory for $N_{\mathrm{atoms}}\times N_{\mathrm{occ}}$ \ac{MW} functions. However, since these objects are relatively localized, their memory footprint is modest and can, in addition, be amortized by distributing objects across compute nodes. Furthermore, the function-function products can also be distributed across nodes and screened aggressively.
 
-%The first expression is requires less operations, since only one operator application needs to be evaluated. The second form requires to apply an operator for each nucleus.
+The second approach requires a summation of $N_{\mathrm{atoms}}$ terms, followed by $N_{\mathrm{occ}}$ function multiplications. However, the total potential is no longer well-localized, as it describes the potential from all clamped nuclei, and it requires a large amount of memory storage. Storing the nuclear potential is wasteful: only its \ac{MW} nodes with non-zero overlap with the occupied orbitals will contribute to the final result.
 
-%However the second form may still have computational advantages:  The second form is also simpler to set into a parallel framework, since the contribution from each nucleus can be evaluated completely independently. The potential for a single nuclei is memorywise smaller than the total potential.
+Despite these considerations, our present implementation uses the ``sum-then-apply" form. In the future we plan to try the first approach and also adapt the accuracy according to the electronic density and compare the performance between the two approaches.
 
-%I %but we should do something about it to reduce or delocalize the memory footprint
 
-\subsubsection{The Coulomb potential $J$}
+\subsubsection{The Coulomb potential $J$}\label{sec:compute-J}
+The Coulomb interaction can be expressed as:
+\begin{equation}
+    \begin{aligned}
+  J(\rvec) &= \sum_i \int \frac{\orbital^*_i(\rvec')\orbital_i(\rvec')}{|\rvec-\rvec'|} \, \mathrm{d}\rvec' =
+  \sum_i  \left[
+  \frac{1}{|\rvec-\rvec'|} \star 
+  \orbital^*_i\orbital_i
+  \right] =
+  \frac{1}{|\rvec-\rvec'|} \star 
+  \left[\sum_i 
+  \orbital^*_i\orbital_i
+  \right]
+    \end{aligned}
+\end{equation}
+where, as indicated by the last step, we can choose the order of the operations when constructing the Coulomb potential: either summing the orbital densities first and compute the potential of the total density (\textbf{sum-then-apply}), or, first computing the Coulomb potential of each individual orbital density and then sum the potentials (\textbf{apply-then-sum}). The electrostatic potential is in general a much smoother function than its corresponding density, which contains cusps at every nuclear site. It is thus desirable to avoid the explicit construction of the global density and instead gradually build a global potential by partial applications of the Poisson operator to subsets of orbital densities. This operation can also easily be distributed in parallel by assigning different subsets to different processes.
 
-The coulomb interaction is computed in two steps. First the total density is obtained as a sum of orbital contributions. Thereafter the Coulomb potential is computed by applying the Poisson kernel.
-\begin{eqnarray}
-  \rho(r) &= \sum_k \phi^*_k(r)\phi_k(r)\\
-  J(r) &= \int \frac{\rho(r')}{|r-r'|} \, dr'
-\end{eqnarray}
+The Poisson kernel is expressed in a separable form, within the requested precision, as a sum of Gaussian contributions.\cite{Beylkin.10.1016/j.acha.2005.01.003} Each Gaussian kernel is applied separately and the contributions are then added up. The separated representation is essential to achieve fast linear-scaling algorithms: on the one hand it brings down the formal scaling of the operator application for each node from $2^6 k^6$ to $M 2^4 k^4$, where $k$ is the polynomial order and $M$ is the separation rank; on the other hand the Gaussian contributions will range from wide ones (shallow \ac{MW} representation which couple long-range but at coarse scales) to narrow ones (deep \ac{MW} representation which couple short-range at all scales). In practice, most of the $M$ terms will be applied very efficiently and the separation between long-range and short-range interactions -- which is otherwise achieved through the \ac{FMM} -- is naturally included without extra effort.\cite{Frediani.10.1080/00268976.2013.810793, Beylkin.10.1016/j.acha.2007.01.001}
 
-\subsubsection{The exchange potential $K$}
+Normally the potential is computed with the required precision in the entire space, and since it is long range, it will be relatively memory consuming.
 
-The exchange potential is the most computationally demanding part, because it cannot be written in closed form. A Coulomb potential must be constructed and applied for each orbital pair:
+\subsubsection{The exchange potential $K$}\label{sec:compute-K}
+The construction and application of the exchange potential is the most computationally demanding part, because the exchange operator cannot be written as a simple multiplicative potential. A Coulomb potential must be constructed and applied for each orbital pair:
 
 \begin{equation}
-  K \phi_j = \sum_k  K_k \phi_j 
+  K[\orbital_j] = \sum_i K_i[\orbital_j] = 
+  \sum_i \orbital_i(\rvec) \int \frac{\orbital^*_i(\rvec')\orbital_j(\rvec')}{|\rvec-\rvec'|} \, \mathrm{d}\rvec'
+  =
+  \sum_i \orbital_i(\rvec) \left[
+  \frac{1}{|\rvec-\rvec'|} \star 
+  \orbital^*_i\orbital_j
+  \right]
 \end{equation}
-with 
+Section \ref{Xscreen} provides a more detailed description of how these terms can be evaluated efficiently in a \ac{MRA} framework. 
+
+\subsubsection{Construction of the right-hand side and Helmholtz operator application}\label{sec:rhs}
+The central step in the SCF iteration is the application of the Helmholtz operator $H^{\mu}$ defined in Eq.~\eqref{eq:helmholtz-green} to the square bracket on the right-hand side in Eq.~\eqref{eq:integral-SCF}. The Helmholtz kernel depends on the orbital energy ($\mu_i = \sqrt{-2F_{ii}}$). As such, one needs to construct as many operators as there are occupied orbitals. Given the Fock matrix, each term within the square bracket in Eq.~\eqref{eq:integral-SCF} can be assembled with $O(N)$ formal operation count per orbital $\orbital_i$. Thus, the formation of the whole right-hand side for the entire set of orbitals formally scales as $O(N^{2})$. However, $\sum_{j \ne i}^{N_{\mathrm{occ}}} F_{ij} \orbital_j $ is a linear combination of orbitals and, as shown in Section~\ref{sec:localvsorb}, it can be performed efficiently with $O(N)$ operation count. Also the application of the exchange operator can be done essentially in $O(N)$ operations as shown in Sections \ref{Xscreen} and \ref{sec:screen}.
+
+Once the right-hand side is assembled, the application of the Helmholtz operator is practically identical to the Coulomb operator. The only difference is the actual expansion in Gaussians, which, thanks to the long-range exponential decay of the kernel, has more favorable scaling properties.\cite{Frediani.10.1080/00268976.2013.810793} 
+
+\section{Function representation with Multiwavelets}\label{sec:func_rep}
+
+In order to make the implementation details clearer to the reader we will here introduce a few simple concepts of \ac{MRA}. We will by no means be exhaustive and refer the interested reader to the rich literature on the subject for further details.\cite{Alpert:2002cx,Frediani.10.1080/00268976.2013.810793,Beylkin.10.1002/cpa.3160440202,Bischoff2019-mr}. In particular, the 2002 article by \citeauthor{Alpert:2002cx} is a very pedagogical introduction to \acp{MW}.~\cite{Alpert:2002cx}
+
+A one dimensional \ac{MRA} is obtained by defining a set of scaling functions $\scaling_p(x)$, which fulfill the so called self-similarity properties:
+the $k+1$ scaling functions $(p=0,1 \ldots k)$ in interval $[l/2^s,(l+1)/2^s]$ can be obtained by translating and dilating the original functions defined in $[0,1]$:
 \begin{equation}
-  K_k \phi_j = \phi_k(r) \int \frac{\phi^*_k(r')\phi_j(r')}{|r-r'|} \, dr'
+    \scaling^s_{pl}(x) = 2^{s/2} \scaling_p(2^s x - l).
 \end{equation}
 
-Section \ref{Xscreen} provides a more detailed description of how these terms can be evaluated efficiently in a MRA framework. 
+The wavelet functions are  the orthogonal complement of the scaling functions between two successive scales $s$ and $s+1$ and they also fulfill a self-similarity relationship:
+\begin{equation}
+    \wavelet^s_{pl}(x) = 2^{s/2} \wavelet_p(2^s x - l).
+\end{equation}
 
-\subsubsection{$V_{xc}$}
-\todo[inline]{PW: "each point in space" is not very correct. Should be "at the same resolution as the used basis". Reformulate? }
-The density is evaluated at each point in space, and the exchange and correlation potential $V_{XC}$ is then evaluated using the external library XCfun[REF], and transformed back into a MW potential.
+For details about the construction of the Multiwavelets used in this work we refer the reader to the original work of \citeauthor{Alpert.10.1137/0524016}. \cite{Alpert.10.1137/0524016}
+For our purposes, it suffices to say that this construction provides a basis which is dense in $L^2$ and there are two equivalent ways to project a function, commonly called \emph{reconstructed} and \emph{compressed} representation. The reconstructed representation of a function $f$ makes use of the scaling functions at the finest scale $S$ (largest $s$ value), 
+\begin{equation}\label{eq:reconstructed_func}
+  f = \sum_{l=0}^{2^S-1}\sum_{p=0}^k c^S_{pl} \scaling^S_{pl}, \qquad c^s_{pl} = \braket{f | \scaling^s_{pl}}. 
+\end{equation}
+The compressed representation makes use of the scaling functions at $s=0$ and all successive wavelet functions from scale $s=0$ to scale $s=S-1$.
+\begin{equation}\label{eq:compressed_func}
+  f = \sum_{p=0}^k c_{p} \scaling_p + \sum_{s=0}^{S-1} \sum_{l=0}^{2^s-1} \sum_{p=0}^k d^s_{pl} \wavelet^s_{pl}, \qquad d^s_{pl} = \braket{f | \wavelet^s_{pl}}
+\end{equation}
+In practice, the \emph{reconstructed} representation describes the function as a piece-wise polynomial on a grid. Such a grid is generally \emph{adaptive} and the finest scale $S$ is therefore not a uniform value. The \emph{compressed} representation is instead used to determine the level of refinement which is necessary to keep the error under control.  Both function representations can be expressed as a tree structure where each pair of indices $sl$ designates a \ac{MW} node in the tree. The range of $l$ is both scale- and function-dependent: it runs over all nodes included at the given scale for the selected function/orbital. For the reconstructed representation the nodes in use are the \emph{leaf} nodes in the tree (nodes with no further ramifications), whereas for the compressed representation, the nodes in use are all the \emph{branch} nodes, starting from the single root node ($s=0$).
+Switching from one representation to the other is performed through the fast \ac{MW} transform.\cite{Beylkin.10.1002/cpa.3160440202,Frediani.10.1080/00268976.2013.810793}. For the purpose of the present discussion, suffices to say that the \ac{MW} transform is local and fast: the computational cost of the \ac{MW} transform scales as the number of nodes in the function tree and requires only a few small matrix multiplications for each node.
 
-\subsubsection{Helmholtz operator}
-
-The Helmholtz operator defined in Eq.~\ref{eq:helmholtz-green} and employed in Eq.~\ref{eq:integral-scf}, depends on the orbital energy. As such one needs to construct as many operators as there are orbitals.
-
-%\subsection{MRChem software, MRCPP and Vampyr}
-%section about availability and things the code can do for the user
-%\todo[inline]{Do we nee this at all?}
-%\todo[inline]{PW: probably not if there is a reference to another paper where this is shown}
+For operator applications in the non-standard form\cite{Beylkin.10.1002/cpa.3160440202,Frediani.10.1080/00268976.2013.810793}, both scaling and wavelet coefficients are needed and they are therefore stored for each \ac{MW} node. As a result, each three dimensional node will contain some metadata (scale $s$, translation indices $l_x, l_y, l_z$, connectivity information about neighbors nodes, parent and children, etc...) and an array of $2^3 (k+1)^3$ coefficients: $(k+1)^3$ scaling coefficients and $(2^3-1)(k+1)^3$ wavelet coefficients. 
 
 \section{Implementation details and parallelization strategy}
 
-MW calculations can be computationally demanding. Both the total amount of elementary operations, the large amount of memory required and the capacity of the network are important bottlenecks. 
+\ac{MW} calculations can be computationally demanding. Both the total amount of elementary operations, the large amount of memory required and the capacity of the network are important bottlenecks. 
 
-In practice a supercomputer is required for calculations on large systems.
-For example the representation of one orbital is described typically by of the order of 10-500MB of data (see section \ref{sizes}). Usually several sets of orbitals are required in the scf process (previous iterations, right hand size of equations etc.). If 1000 orbitals are described, this will often require more memory than is locally available on a single compute node in a cluster. Therefore it is required to store the data in a distributed way. At the same time, the equations require to access all pairs of orbitals, i.e. all the data must at some point be accessible locally.
+In practice, a supercomputer is required for calculations on large systems.
+For example the representation of one orbital can demand between 10 and 500MB of data, depending on the kind of orbital and the precision requested (see Section \ref{sizes} for details). Moreover, several sets of functions are necessary in a single \ac{SCF} iteration (orbitals at the previous iterations, right-hand side of equations etc.). Large systems will eventually require more memory than is locally available on a single compute node in a cluster, and distributed data storage becomes mandatory. At the same time, the \ac{SCF} equations will require pairs of orbitals, i.e. all the data must at some point be accessible locally.
 
-In order to solve the equation in parallel, the problem needs to be partitioned into smaller parts that can be computed with as little transfer of data as possible between the different parts.
-
-
+For an efficient solution scheme on a cluster architecture, the problem needs to be partitioned into smaller portions that can be computed with as little transfer of data as possible between the different nodes of the cluster.
 
 \subsection{Localized versus canonical orbitals}
 
-Although localized and canonical orbitals represent the same N-electrons wave function, the numerical operations required to solve the equations will have different scaling properties in a canonical or localized representation.
-Because of the inherent adaptiveness of the MW approach, multiplying two orbitals, or applying an operator onto an orbital can be done more efficiently if the orbitals are localized in space. Even if the orbitals have non-negligible values in a large portion of space, the adaptiveness properties will make sure that the calculations in the parts where the orbitals are small are done at a coarser level of accuracy, and therefore faster than in the regions with larger values.
+Although localized and canonical orbitals represent the same $N$-electron wave function, the numerical operations required to solve the equations will have different scaling properties in a canonical or localized representation.
+Because of the inherent adaptivity of the \ac{MW} approach, multiplying two orbitals, or applying an operator onto an orbital can be done more efficiently if the orbitals are localized in space. Even if the orbitals have non-negligible values in a large portion of space, the adaptivity properties will make sure that the calculations in the parts where the orbitals are small are done at a coarser level of accuracy, and therefore faster than in the regions with larger values.
 
-\subsection{Local (real space) versus orbital representation}
+We use the Foster--Boys localization criterion.\cite{Foster1960} The unitary, localizing orbital rotation is computed by minimizing the sum of the occupied orbitals' second central moment.\cite{Hoyvik2016-cw} See also sections \ref{sec:localvsorb} and \ref{sec:N3terms} for more details on the practical implementation.
+
+\subsection{Local (real-space) versus orbital representation}
+\label{sec:localvsorb}
 %NB: easy to confuse real space local and localized orbitals!
 
-The orbitals need to be stored on the computer. This can be done in several ways. The KS or HF equations are written in terms of orbitals, and therefore it is natural to implement the code in a way that follows the mathematical expressions, i.e. each orbital is stored individually. Another way of partitioning the problem, is to consider one part of real space at a time, and store together the contributions from all the orbitals at that position. Both approaches have advantages and disadvantages.
+\begin{figure}
+\centering
+\includegraphics[width=1.\textwidth]{checkerboard.png}
+\caption{\label{fig01} Real-space vs. orbital representation. A dark cell represent a node occupied by the corresponding orbital. In an orbital representation (rows) the data from each row is stored and retrieved together. In a local representation (columns), the data from each column is stored and used together. The most convenient representation depends on the operation at hand and it is therefore best to be able to switch from one to the other.}
+\end{figure}
 
-We will show here why it is advantageous, for some terms at least, to shift to a real-space partitioning approach.
 
-(This is similar to the history for gaussian basis set methods, which started using Molecular Orbitals, but for large systems could get more efficient implementations by expressing the core terms using an "Atomic Orbitals" representation \cite{trygve})
+Two main strategies can be adopted to distribute the memory storage requirements for orbitals throughout the cluster. The first strategy follows \emph{verbatim} the mathematical expressions: the \ac{HF} equations are written in terms of orbitals, and therefore it is natural to keep the data representing each orbital together. The second strategy, is based on a real-space partitioning: contributions from all the orbitals in a given portion of real space are stored together (see Figure~\ref{fig01}). Both strategies have advantages and disadvantages, and in practice it is convenient to switch between them depending on the given operation.
 
-In the computation of the Fock matrix elements, one has to evaluate terms of the form 
-%note: the equation is not interpreted right by overleaf if physics package is used
+Taking as an example the computation of the Fock matrix elements in Eq.~\eqref{eq:fock-matrix-definition},  we will show why it is advantageous to shift to a real-space partitioning approach.\footnote{A similar development has happened for the \ac{LCAO} methods: they first were based on \acp{MO}, but when the focus shifted towards large systems, it was soon realized that efficient implementations demanded a design based on using \acp{AO} directly.\cite{Helgaker2000-yb}}
+Operator matrix elements are evaluated as 
+
 \begin{equation}
-  {\hat O}_{ij} = \braket{\phi_{i} | {\hat O} |\phi_j}  = \braket{\phi_i | {\hat O} \phi_j} 
+  V_{ij} = \braket{\orbital_{i} | {\hat V} |\orbital_j}  = \braket{\orbital_i | {\hat V} \orbital_j} 
 \end{equation}
-
-where $\phi_i$ and $\phi_j$ are occupied orbital, and ${\hat O}$ is an operator, for example the nuclear potential operator. If the application of the operator is considered as a $~0(N)$
+where $\orbital_i$ and $\orbital_j$ are occupied orbitals and ${\hat V}$ is any one-electron operator, such as the nuclear potential operator. If the application of the operator ($\ket{{\hat V} \orbital_j},\,\,\forall j$) is considered as a $O(N_{\mathrm{occ}})$
 %not if the operator grows with N. Not that simple!
-operation, the calculations of the entire matrix runs over all the orbital pairs and therefore scales formally as $~0(N^2)$. We can express explicitly the orbitals in the multiwavelet basis:
+operation, computing the entire matrix scales formally as $O(N_{\mathrm{occ}}^2)$. 
 
-\begin{equation}
-  \phi_i = \sum_{k,n} c_{ikn} p_{kn} 
+Both the $\orbital_i$
+and the result of the operator application $\tau_j = \hat{V} \orbital_j$
+are represented either through the \emph{compressed} or \emph{reconstructed} representation, as described in Section~\ref{sec:func_rep}. For instance the compressed representations for $\orbital_i$ and $\tau_i$ would yield respectively
+\begin{equation}\label{eq:compressed_orb}
+  \orbital_i = \sum_{p} c^i_p \scaling_p + \sum_{np} d^i_{np} \wavelet_{np} \quad\text{and}\quad \tau_j = {\hat V} \orbital_j = \sum_{p} t^j_p \scaling_p + \sum_{np} w^j_{np} \wavelet_{np}.
 \end{equation}
-\begin{equation}
-  {\hat O} \phi_j = \sum_{k,n} d_{jkn} p_{kn} 
-\end{equation}
+Where $n$ represents the composite index $sl$ and runs over all the included \ac{MW} nodes.
 
-where $p_{kn}$ is a member of the used MW basis, i.e. a three-dimensional polynomial (index $k$) for a multiwavelet node (index $n$) at specific position in space, and $c_{ikn}$ are the coefficients that define the function $\phi_i$ in that basis. 
+When representing functions in 3 dimensions,
+using a tensor-product basis and localized orbitals, both $p$ and the number of \ac{MW} nodes, are typically of size $\sim 10^4$. 
 
-Since the basis is adaptive, different functions will use different sets of nodes. 
-In order to compute the overlap of two functions $\phi_i$ and ${\hat O} \phi_j$, they are first adaptively projected onto a common basis and multiplied:
 
-\begin{equation}
-  \braket{\phi_i|{\hat O} \phi_j} = \sum_{k,n} c_{ikn}d_{jkn}
-\end{equation}
-
-since $\braket{p_{kn}|p_{lm}} = \delta_{kl}\delta_{nm}$
-
-This operation is equivalent to the multiplication of the $c$ and $d$ matrices. However for large systems, it is not possible to hold the coefficients for all the indices i,j,k,n in local memory.
-The "MO" approach is then to sum over all $k,n$ for each pair ij independently. The problem is that each coefficient $c_{ikn}$ is used only once at a time. On modern based computers memory access are much more time demanding (factor of the order of 100 for most CPU based systems) than the mathematical operations itself.  A much faster implementation is to consider a specific node n and perform the product for all i, j and k values within this node. 
-
-\begin{equation}
-\label{equ:sum}
-  \braket{\phi_i | {\hat O} |\phi_j}_n = \sum_{k} c_{ikn} d_{jkn} \forall i,j
+To perform a scalar product, it is sufficient to recall that the scaling/wavelet basis is fully orthonormal:
+\begin{equation}\label{eq:wavelet_othrogonality}
+  \braket{\scaling_{p} | \scaling_{p'}}  = \delta_{pp'}, \quad   \braket{\wavelet_{np} | \wavelet_{n'p'}}  = \delta_{nn'}\delta_{pp'}, \quad   \braket{\scaling_{p} | \wavelet_{n'p'}}  = 0  
 \end{equation}
 
-This results in a series of independent matrix multiplication operations that can fully utilize the capabilities of the computer. 
+which then yields the following result for an operator matrix element between two orbitals:
+\begin{equation}
+  \braket{\orbital_i|{\hat V} \orbital_j} = \sum_{k} c^i_{p} t^j_{p} + \sum_{np} d^i_{np} w^j_{np}
+\end{equation}
+where now the sum over the nodes $n$ only extends to those nodes which are present for both functions.
 
-This means however that the storage of the orbitals in memory must be adapted. Instead of storing each orbital separately (orbital or MO representation), the values of all the orbitals at specific positions in space (node) must be easily accessible (local representation). To change from an orbital to a local representation is a $~0(N)$ operation,
+Ignoring for simplicity the scaling contribution which has negligible impact on the performance, this operation is equivalent to a matrix multiplication $D \cdot W^T$ with $D_{ia} = d^i_{np}$ and $W_{ja} = w^j_{np}$, and $a$ is the compound-index $a=np=nsl$. However, for large systems it is not possible to hold the full matrices in local memory.
+The \ac{MO}-like approach is then to sum over all compound indices $a$ for each pair $i,j$ independently. In this way each pair of coefficients $d^i_{np}$ and $w^k_{np}$ is used only once after each memory fetch. On modern computers, memory access is much more time-consuming than the mathematical operations themselves, up to a factor 100 for most CPU-based systems. A faster implementation is to consider a specific \ac{MW} node $n$ and perform the product for all $i$, $j$ and $p$ values within this node:
+\begin{equation}\label{equ:sum}
+  \braket{\orbital_i | {\hat V} |\orbital_j}_{n} 
+  = \sum_{p} \left(d^i_{p} w^j_{p}\right)_{n}, \quad\forall i,j,
+\end{equation}
+this results in a series of independent matrix multiplications, thus fully utilizing the capabilities of the computer. 
 
-It is still possible, to take advantage of the screening in the local approach: for each function, the norm values within each node is stored, so that when the product of the norms is below a threshold, the corresponding matrix multiplication does not need to be performed.
-
-Also orbital rotations can be addressed in a similar way.
-
-%which terms are using local storage
-
-
-
-\subsection{Adaptivity}
-
-In the MRA framework, the required precision can limit the number of elementary operations at several levels.
-
-At the lowest level, most operations on a function in a multiwavelet representation will successively refine the local basis (i.e. grid) of the resulting function, until the required precision is reached. That means that the computational effort required will vary according to the position and shape of the functions or operators. For example the product of two functions which are localized in different part of space, will normally be done faster than the square of one of them. [REF?]
-
-At a higher level, only the parts of functions with absolute value (norm of the node) above a defined threshold can be retrieved before even processing them; this is used in the scheme presented in the previous section.
-
-Finally at the coarsest level, one can start to perform a SCF calculation with low precision, and use the final result as starting guess for a calculation with higher precision. In contrast to finite basis sets (which usually are not subsets of each others), a multiwavelet function represented with a given precision, can directly be used as a valid representation at a different precision.
+To perform the operation in this way, the storage of the orbitals in memory must be adapted. Instead of storing each orbital separately (orbital or MO representation), the values of all the orbitals at specific positions in space (\emph{i.e.}~a \ac{MW} node) must be easily accessible (local representation). Switching from an orbital to a local representation is a $O(N)$ operation, where $N$ measures the system size, typically the number of orbitals.
+If all $i$ and $j$ are included, the number of operations still scales formally as the square of the number of orbitals. However for a given node $n$, the products only needs to be explicitly performed if both functions (indices $i$ and $j$) have a non-negligible contribution to the node $n$. When orbitals are localized, the number of such contributions will eventually scale linearly with the system size.
 
 
-\subsection{MPI parallelization}
+Linear combinations of orbitals can be addressed similarly. Let us consider the linear combination
+\begin{equation}
+  \tilde{\orbital}_i = \sum_{j} A_{ij} \orbital_j
+\end{equation}
+where $A_{ij}$ is the coefficient matrix of the transformation.
+In a linear transformation, each \ac{MW} node can be transformed independently for each node $n$, to obtain the corresponding coefficients for $\tilde{\orbital}_i$:
+\begin{equation}
+  w^i_{np} = \sum_{j} A_{ij} d^j_{np}
+\end{equation}
+Here also, the number of localized orbitals contributing to a specific \ac{MW} node $n$ grows as $O(1)$ with system size. 
+When constructing $\tilde{\orbital}_i$, the grid is successively refined, so that only values corresponding to \ac{MW} nodes with wavelet norms above the required threshold are actually computed.
+Moreover, due to linearity this operation is carried out both for scaling and wavelet coefficients, thus avoiding the need to perform any \ac{MW} transform.
 
-MRChem is parallelized using Message Passing Interface (MPI \cite{mpi}) and OpenMP \cite{omp}.  
+\subsection{Adaptivity and precision thresholding}\label{sec:adaptivity-screening}
 
-The MPI processes are partitioned into three groups:
+The most powerful idea of \ac{MRA} is to limit the precision of intermediate operations to what is strictly necessary to achieve the requested precision in the final result. This guiding principle can be exploited at several levels:
 
-\subsubsection{MPI "workers"} 
-They perform the mathematical operations. These processes have also access to multiple threads for OpenMP parallelization. The large majority of the cores are assigned to worker processes.
-
-The low level operations (on one or two orbitals or MW trees, and on nodes) are included  in the MRCPP library. The MRCPP will perform tree operations as a set of operations on nodes. Those operations will then be performed in parallel by OpenMP threads. The thread parallelity is transparent for the library user; only the number of threads needs to be set.
-
-
-\subsubsection{Memory bank processes} 
-These processes are only receiving and distributing data to the workers, they do not perform major mathematical operations and are not threaded. Those processes will impose a high load on the network; it is therefore important to distribute those process on all compute nodes in order to avoid saturation of the local network. Since the memory bank processes are different from the worker processes, the worker processes can access all the data without direct communication with other workers (in effect, one sided memory access). Efficient transfer of data is the key to a successful parallelization scheme.
-
-In the multiwavelet approach, orbitals are functions represented in a tree structure. The root nodes cover the entire space of the system, and each subdivision defines branches. In order to facilitate the transfer of those functions, the tree structure and the node data are stored in piecewise contiguous memory. This allows the data to be sent efficiently among MPI processes: only the position in memory of the start and end of the pieces are required, and some metadata information. A tree can then be transfered without intermediate buffering and with little overhead. 
-The MRCPP library contains functionalities to easily and efficiently transfer MW trees (or orbitals) between MPI processes. 
-
-The interface is simple and intuitive, and the basic commands in the C++ code are:
-\begin{itemize}
-    \item Save Orbital, give it an identification tag "id": 
-    
-put\_orb(id, Orbital)
-\item Fetch Orbital with  identification tag "id": 
-
-get\_orb(id, Orbital)
-
-\end{itemize}
-
-
-The underlying libraries will then find a suitable place in the "bank" to store the orbital.
-
-%The MRCPP library allows to store a function as "shared memory" using MPI-3 functionalities. In such a format, all the MPI processes on a compute node can directly access a function using only one copy on the compute node. In our present implementation, the Nuclear and Coulomb potentials are stored in shared memory form.
-%(We did not use the shared memory feature as much as intended, because we noticed that it sometimes causes a drop in performance, that was difficult to understand and control.)
-
-\subsubsection{Task manager} 
-In a localized orbital approach, many of the elements of the matrix $\braket{\phi_i|{\hat O} \phi_j}$ will be small. Since the method is inherently adaptive using the MRCPP library, the small elements will be faster to compute. In order to fully exploit this feature, a dynamical distribution of tasks is required.  
-In practice the matrix $\braket{\phi_i|{\hat O} \phi_j}$ is partitioned into blocks. Each block represent one task to be performed by a "worker". In a local representation, each node is simply assigned to a separate task. When a "worker" is done with one task it can ask for a new task from the "task manager" until all the tasks are completed.
-
-One single MPI process is reserved for managing the task queue. The only purpose of this process is to keep account of the tasks that have been assigned and the tasks left, and distribute unsolved tasks to the workers. It does only send and receive small amounts of data at a time (a few bytes) and will therefore in practice not be saturated with requests.
-
-
-
-%In a fixed and limited basis set, the functions and operators can be represented as dense arrays, and the mathematical expressions become matrix multiplications. Matrix multiplication can be performed very efficiently on all types of supercomputers (both CPU and GPU based).
-%In the multiwavelet representation, the representation of functions are given in a different basis, and there is no simple way to represent the equations as dense matrix multiplications. Only at the node level, the polynomial representation is in a predefined basis, and this is exploited, but there are still too few polynomials to fully take advantage of the hardware. 
-
-%in appendix? example of C++ command to fetch and store orbitals?
+\begin{enumerate}
+    \item Elementary mathematical operations on a function in a multiwavelet representation will automatically refine the local basis (\emph{i.e.}~grid) of the resulting function, but only until the required precision is achieved. The computational effort required will vary according to the position and shape of the functions or operators. For example, the product of two functions which are localized in different parts of space, will normally be done faster than the square of each of them.
+    \item Only those parts of functions with absolute value (norm of the \ac{MW} node) above a defined threshold will be retrieved before even processing them; this is used \emph{e.g.}~in the scheme presented in the previous section.
+    \item A \ac{SCF} calculation can be initiated at low precision and the final result can be used as starting guess for a calculation with higher precision. In contrast to finite \ac{AO} basis sets, which are usually not subsets of each other, a multiwavelet function computed at a given precision, can be directly used as a valid representation at a different precision.
+\end{enumerate}
 
 \subsection{Exchange screening}
 \label{Xscreen}
@@ -363,302 +391,379 @@ The exchange terms require the evaluation of
 
 \begin{equation}
 \label{equ:ex}
-  K_{Ex}^k(r) \phi_j = \phi_k(r) \int \frac{\phi^*_k(r')\phi_j(r')}{|r-r'|} \, dr'
+  K_i \orbital_j = \orbital_i(\rvec) 
+  \left[
+  \int \frac{\orbital^*_i(\rvec')\orbital_j(\rvec')}{|\rvec-\rvec'|} \, \mathrm{d}\rvec'
+  \right]
 \end{equation}
-
- for all $k$ and $j$
+ for all $\frac{N_{\mathrm{occ}}(N_{\mathrm{occ}}-1)}{2}$ orbital pairs $i,j$.
 
 The evaluation of equation (\ref{equ:ex}) can be divided into 3 operations:
 \begin{itemize}
-\item Product of $\phi^*_k(r')$ and $\phi_j(r')$
-\item Application of Poisson operator, $\int \frac{(\phi^*_k(r')\phi_j(r'))}{|r-r'|} \, dr'$
-\item Product with $\phi_k(r)$, $\phi_k(r) (\int \frac{\phi^*_k(r')\phi_j(r')}{|r-r'|} \, dr')$
+\item Product of $\orbital^*_i(\rvec')$ and $\orbital_j(\rvec')$
+\item Application of the Poisson operator, $\int \frac{\orbital^*_i(\rvec')\orbital_j(\rvec')}{|\rvec-\rvec'|} \, \mathrm{d}\rvec'$
+\item Product with $\orbital_i(\rvec)$, $\orbital_i(\rvec) \left[\int \frac{\orbital^*_i(\rvec')\orbital_j(\rvec')}{|\rvec-\rvec'|} \, \mathrm{d}\rvec'\right]$
 \end{itemize}
 
-The application of the Poisson operator gives a long range potential that decreases as 1/r. However if the function $\phi_k(r)$ is localized, only the the part of the potential where $\phi_k(r)$ is large enough needs to be computed. More precisely the accuracy of the potential needs only to be computed up to a precision which is inverse proportional to the value of $\phi_k(r)$ at that point. 
+The application of the Poisson operator gives a long range potential that decays as $\frac{1}{r}$. However, if the orbital $\orbital_i(\rvec)$ is localized, only the part of the potential where $\orbital_i(\rvec)$ is large enough needs to be computed. More precisely, the potential needs only to be computed up to a precision which is inversely proportional to the value of $\orbital_i(\rvec)$ at that point. The Poisson operator can therefore use a locally defined threshold, where the required precision of the operator application is determined using local information from a \emph{proxy} for the result function.
 
-To handle this situation, the Poisson operator can use an adaptive precision, where the required precision of the operator application is determined locally by the value of a given function. In practice, a set of functions can be provided, and the precision at a given node is determined by the largest value of the norm of those functions at this node. This allows to treat the two terms $\phi_k(r) \int \frac{\phi^*_k(r')\phi_j(r')}{|r-r'|} \, dr'$ and  $\phi_j(r) (\int \frac{\phi^*_k(r')\phi_j(r')}{|r-r'|} \, dr')$ using the same $\int \frac{\phi^*_k(r')\phi_j(r')}{|r-r'|} \, dr'$.  Also complex functions can take advantage of this symmetry, since the complex and real part of $\phi_k(r)$ can then use the same $\int \frac{\phi^*_k(r')\phi_j(r')}{|r-r'|} \, dr'$.
+As for all \ac{MW} representations of functions, the output of a Poisson operator application uses an adaptive grid: when a new \ac{MW} node is computed, the norm of the wavelet part is compared to the precision threshold to decide whether to further refine the representation or not. In general, the precision threshold is fixed: it is one and the same over the entire space. For the \ac{HF} exchange, we already know that the result of convolution with the Poisson kernel will only be used as part of the product with $\orbital_i(\rvec)$. Thus, the precision threshold can be multiplied by the local value of the norm of $\orbital_i(\rvec)$ (the reference function). This procedure will yield a grid which is adapted to the final result, with increased precision corresponding to the regions with non-negligible values of $\orbital_i(\rvec)$.
 
-Without screening, the number of exchange terms grows as $N^2$ and each term requires the application of Poisson operator. Distant orbitals that do not overlap, do not contribute, and therefore proper handling of the screening will be reflected in a cost of the exchange terms that grows linearly in size for large enough systems (if the required overall absolute precision is held constant). 
+Several reference functions can be provided, and the precision at a given \ac{MW} node is determined by the largest value of the norm of those functions at the node. This allows to treat the two terms $\orbital_i(\rvec) \left[\int \frac{\orbital^*_i(\rvec')\orbital_j(\rvec')}{|\rvec-\rvec'|} \, \mathrm{d}\rvec'\right]$ and  $\orbital_j(\rvec) \left[\int \frac{\orbital^*_i(\rvec')\orbital_j(\rvec')}{|\rvec-\rvec'|} \, \mathrm{d}\rvec'\right]$ using the same potential $\int \frac{\orbital^*_i(\rvec')\orbital_j(\rvec')}{|\rvec-\rvec'|} \, \mathrm{d}\rvec'$.  Also complex functions can take advantage of this feature, since the real and imaginary parts of $\orbital_i(\rvec)$ can then use the same potential.
 
-In practice if the product of $\phi^*_k(r')$ and $\phi_j(r')$ is small enough, the calculation of the corresponding term can be interrupted. As is shown in section \ref{sec:screen} this leads to an effective long range screening.
+Without screening, the number of exchange terms grows as $N^2_{\mathrm{occ}}$ and each term requires the application of the Poisson operator. Distant orbitals that do not overlap, do not contribute, and therefore proper handling of the screening will be reflected in a cost of the exchange terms that grows linearly in size for large enough systems (if the required overall absolute precision is held constant). 
+Additionally, if the product of $\orbital^*_i(\rvec')$ and $\orbital_j(\rvec')$ is small enough, the calculation of the corresponding term can be avoided altogether. As shown in Section \ref{sec:screen} this leads to an effective long range screening.
 
+\subsection{$O(N_{\mathrm{occ}}^3)$ terms}
+\label{sec:N3terms}
 
-\subsection{$0(N_{occ}^3)$ terms}
+In our implementation there are two steps with an operation count that formally scales with the third power of the number of (occupied) orbitals: the localization
+and the orthogonalization steps. The former involves the product of matrices with sizes $N_{\mathrm{occ}} \times N_{\mathrm{occ}}$; the latter performs the diagonalization of a Hermitian matrix and subsequent matrix multiplications, both with cubic formal scaling.
 
-In our implementation there are two steps which require a number of terms that scale with the third power of the number of (occupied) orbitals. 
+Matrix operations can be performed extremely effectively on any computer using standard linear algebra libraries, and those terms will not contribute significantly to the total computation time before considering sizes larger than roughly $N_{\mathrm{occ}}=1000$ for serial matrix multiplications, or $10^4$-$10^5$ for parallel, distributed matrix multiplications (not yet implemented). We have therefore not yet rendered such operations faster than their formal scaling.
 
-The localization algorithm involves the product of dense matrices with sizes $N_{occ} \times N_{occ}$. 
+We note that both steps are not specific to the multiwavelet approach. As a matter of fact, \ac{LCAO} approaches may require those steps to be performed on the virtual orbitals too. For large systems, it might also be possible to exploit the numerical sparsity of the computed matrices.
 
-The scheme for orthogonalization of orbitals uses the diagonalization of a hermitian matrix and subsequent matrix multiplications which both scale as $0(N_{occ}^3)$
-
-Dense matrix operations can be performed extremely effectively on any computer, and those terms will not contribute significantly to the total computation time before considering sizes larger than roughly $N_{occ}=1000$ for serial matrix multiplications, or 10 to 100 thousand for parallel matrix multiplications (not yet implemented). 
-
-Both steps are not specific to the multiwavelet approach, on the opposite, basis set approaches may require those steps to be performed on the virtual orbitals too. For large systems, it might also be possible to exploit the numerical sparsity of the matrices.
-
-% In standard approaches the total number of basis functions has to be considered in the diagonalization steps ($0(N_{basis}^3)$). ?
-% or ($0(N_{occ}^2 N_{basis})$ ? as claimed in
+% In standard approaches the total number of basis functions has to be considered in the diagonalization steps ($O(N_{basis}^3)$). ?
+% or ($O(N_{occ}^2 N_{basis})$ ? as claimed in
 % The Journal of Chemical Physics 140, 204110 (2014); doi: 10.1063/1.4871876
 
+\subsection{Parallelization}
+
+MRChem is parallelized using the \ac{MPI} standard\cite{Pacheco1997-qq,Gropp2014-dz,Gropp2014-qf} and OpenMP threading.\cite{Mattson2019-gl,Van_der_Pas2017-wq}
+The MPI processes are partitioned into three groups which will be described in the following section.
+
+\subsubsection{MPI ``worker" processes} 
+They perform the mathematical operations. These processes have also access to multiple threads for OpenMP parallelization. The large majority of the cores are assigned to worker processes.
+
+The low-level operations (on one or two orbitals or \ac{MW} functions, and on \ac{MW} nodes) are included  in the MRCPP library. MRCPP will perform tree operations as a set of operations on \ac{MW} nodes. Those operations will then be performed in parallel by OpenMP threads. The thread parallelism is transparent for the library user, who will only need to set the number of OpenMP threads.
+
+\subsubsection{Memory bank processes} 
+These processes are only receiving and distributing data to the workers, they do not perform major mathematical operations and are not threaded. Bank processes will impose a high load on the network; it is therefore important to distribute them on all compute nodes in order to avoid saturation of the local network. Since the memory bank processes are different from the worker processes, the worker processes can access all the data without direct communication with other workers (in effect, one-sided memory access). Efficient transfer of data is the key to a successful parallelization scheme.
+
+In the \ac{MW} approach, orbitals are represented as tree structures. The root nodes of the \ac{MW} tree cover the entire space of the system, and each subdivision defines branches. To facilitate the transfer of those functions, the tree structure and the \ac{MW} node data are stored in piecewise contiguous memory. This allows the data to be sent efficiently among MPI processes: only the position in memory of the start and end of the pieces are required, alongside some metadata. A \ac{MW} tree can then be transferred without intermediate buffering and with little overhead. 
+The MRCPP library is able to transfer \ac{MW} trees (or orbitals) between \ac{MPI} processes easily and efficiently. 
+
+The interface is simple and intuitive, and the basic commands in the C++ code are:
+\begin{minted}{c++}
+int id;
+Orbital phi;                // MW representation of an orbital
+BankAccount orbset;         // Define a handle for the set of orbitals 
+orbset.put_orb(id, phi);    // Save Orbital, give it an identification tag "id"
+orbset.get_orb(id, phi);    // Fetch Orbital with identification tag "id"
+
+\end{minted}
+The underlying libraries will then find a suitable place in the ``bank" to store the orbital.
+
+%The MRCPP library allows to store a function as "shared memory" using MPI-3 functionalities. In such a format, all the MPI processes on a compute node can directly access a function using only one copy on the compute node. In our present implementation, the Nuclear and Coulomb potentials are stored in shared memory form.
+%(We did not use the shared memory feature as much as intended, because we noticed that it sometimes causes a drop in performance, that was difficult to understand and control.)
+
+\subsubsection{Task manager} 
+In a localized orbital approach, given the matrix representation $\mathbf{V}$ of an operator $\hat{V}$, many of its matrix elements $V_{ij} = \braket{\orbital_i|{\hat V} \orbital_j}$ will be small. The \ac{MRA} framework implemented in the MRCPP library is inherently adaptive and small elements are computed faster. To exploit such a feature, it is important to equip the library with a dynamical distribution of tasks.
+In practice, the matrix $\mathbf{V}$ is partitioned into blocks, each block representing one task to be performed by a ``worker". In a local representation, each \ac{MW} node is simply assigned to a separate task. When a ``worker" is done with one task it can ask the \emph{task manager}for a new task until all tasks are completed.
+
+One single MPI process is reserved for managing the task queue. The only purpose of this process is to keep account of the tasks that have been assigned and the tasks left, and distribute unsolved tasks to the workers. It does only send and receive small amounts of data at a time (a few bytes) and will not be saturated with requests.
+
+
 \section{Benchmark results}
-%\todo[inline]{PW: need to explain precision notation mw4, mw5...}
-In this section we will show how MRChem performs for some simple systems of different size. MRChem is still under development and the results shown here are just a snapshot of the present situation. The goal is not to determine the limitations of the model, but rather to show that at least in some cases it behaves as intended and that the development is going the right way.
+In this section we will show how MRChem performs for some simple systems of different size. MRChem is still under development and the results shown here are just a snapshot of the present situation. The goal is not to determine the limitations of the model, but rather to show that it behaves as intended and that the development is going in the right direction.
 
-All the benchmark runs presented here were performed on "Betzy", a BullSequana XH2000 computer cluster, with 128 cores and 256 GiB memory per compute node, and infiniband HDR 100 interconnect REF?.
+All benchmark runs presented here were performed on ``Betzy", a Bull Sequana XH2000 computer cluster, with 128 cores and 256 GiB memory per compute node, and InfiniBand HDR 100 interconnect.\cite{Betzy}
 
-All times given in this section are subject to a significant imprecision. The reasons for this are multiple. The runs have been executed in a MPI parallel framework on a supercomputer shared with other users. Several algorithms are performed with dynamic allocation of tasks; as a consequence the same calculations can have a different workload distributions in two repeated identical runs. The network capacity may also be affected by other users. In addition the time spent in different parts of the code may not be well defined: in a parallel framework the same code will start and end at different times for different processes. In principle the time for one block should include the time for all processes to be finished, however in practice processes are allowed to continue without waiting, until they need data which is not yet available.
-The time for a similar SCF cycle may vary by up to 10\%. This accuracy should be sufficient for reflecting the main trends. 
+All timings given in this section are subject to a degree of uncertainty. There are multiple reasons for this. The runs have been executed in a MPI parallel framework on a supercomputer shared with other users. Several algorithms exploit a dynamic allocation of tasks; as a consequence the same calculations can have a different workload distributions in two repeated identical runs. The network capacity may also be affected by other users. Finally, the time spent in different parts of the code may not be well defined: in a parallel framework the same code will start and end at different times for different processes. In principle the time for one block should include the time for all processes to be finished, however in practice processes are allowed to continue without waiting, until they need data which is not yet available.
+The time for a similar \ac{SCF} cycle may vary by up to 10\%. However, this accuracy should be sufficient and reflect the main trends faithfully. 
 
 \subsection{Scaling with system size}
 
 \begin{figure}
 \centering
 \includegraphics[width=1.\textwidth]{Times_nAlkanes.png}
-\caption{\label{fig01}. Computation times divided by number of orbitals for one SCF cycle for different sizes alkanes: $C_{20}H_{42}$, $C_{40}H_{82}$, $C_{80}H_{162}$,$ C_{120}H_{242}$,$ C_{160}H_{322}$,$ C_{200}H_{402}$,$ C_{240}H_{482}$,$ C_{280}H_{562}$. Each molecule is computed using 8 compute nodes. Total time refers to the time spent in one Hartree-Fock SCF cycle, when it is close to convergence. Exchange time refers to the time spent for computing the Exchange contributions. Coulomb time refers to the time used for computing the Coulomb potential of each orbital, summing them up and distributing the total potential to all the compute nodes. Kinetic time refers to the time spent for computing the kinetic energy of each orbital  and Helmholtz time the time for constructing and applying the Helmholtz operator. Constant time per orbital would indicate linear scaling.}
+\caption{\label{fig02}. Timings divided by number of orbitals for one \ac{SCF} cycle for the linear alkanes \ce{C_{n}H_{2n+2}} ($n=20, 40, 80, 120, 160, 200, 240, 280$). All calculations performed using 8 compute nodes. Total time refers to the time spent in one Hartree-Fock \ac{SCF} cycle, when it is close to convergence. Exchange time refers to the time spent for computing the Exchange contributions. Coulomb time refers to the time used for computing the Coulomb potential of each orbital, summing them up and distributing the total potential to all the compute nodes. Kinetic time refers to the time spent for computing the kinetic energy of each orbital  and Helmholtz time the time for constructing and applying the Helmholtz operator. Constant time indicates linear scaling.}
 \end{figure}
 
-Figure \ref{fig01} show computation times divided by the number of orbitals for alkanes of different lengths. For a linear scaling method, the time per orbital should be approximately constant.  The time per orbital less than doubles going from the smallest (81 orbitals) to the largest (1121 orbitals) alkane. This shows that the scaling with system size is mostly linear, with a small non-linear contribution.  
+Figure \ref{fig02} show computation times divided by the number of orbitals for alkanes of different lengths. For a linear scaling method, the time per orbital should be approximately constant.  The time per orbital less than doubles going from the smallest (81 orbitals) to the largest (1121 orbitals) alkane. This shows that the scaling with system size is mostly linear, with a small non-linear contribution.  
 % quadratic scaling would multiply the time by 13.8 
-
-%define precisions mw5, mw6 ...
 
 %The time consuming part of the Coulomb potential, is to gather the partial Coulomb potentials from each process, and distribute the total potential to all the processes again. The size (in terms of memory) of the potential will grow linearly with the size of the system. In addition the gather and scatter is done using a binary tree approach in our present implementation (this does not fully exploit the network parallelism, and better schemes can be implemented). The time for the Coulomb calculations is then formally growing as N ln2 N at present. In a local representation, this distribution of the full potential will not be necessary (but this is not yet implemented). At present the Coulomb and nuclear potential are treated independently. Since they largely cancel each other, a better approach would be to consider the sum of them directly, at least for remote nuclei and orbitals.
 
-%The smallest alkanes are not able to make an optimal utilization of all the available cpus
 
-The clearly most time consuming term is the exchange term. The other terms are showing close to linear scaling properties.
-
-The number of non-negligible exchange contributions should ideally grow linearly with system size for large enough systems, and therefore the exchange computation time per orbital should be constant. However exchange contributions are the result of a sum of terms, and if the number of terms increase the accuracy of each individual term must be increased in order to achieve a fixed absolute precision in the final result. In our implementation, this is taking care of by increasing the required precision of the individual terms by a factor proportional to the square root of the number of orbitals. This is the main reason why our run times are not exhibiting a clearer linear trend.
+The application of the Exchange operator is by far the most time-consuming part of the \ac{SCF} process. The other parts are showing close to linear scaling behavior.
+The number of non-negligible exchange contributions should ideally grow linearly with system size for large enough systems, and therefore the exchange computation time per orbital should be constant. However, exchange contributions are the result of a sum of terms, and if the number of terms increases, the accuracy of each individual term must be increased in order to achieve a fixed absolute precision in the final result. In our implementation, this is taken care of by increasing the required precision of the individual terms by a factor proportional to the square root of the number of orbitals. This is the main reason why our run times are exhibiting a slight non-linearity.
 
 
-\subsection{Size of orbital representation}
-\label{sizes}
-
-In a localized approach, the orbitals functions have negligible values in remote regions of space. In a direct basis set approach (if no special filtering is applied) the representation of an orbital will span the entire represented space, since the basis will increase with the system size. In the MRA approach the orbital will essentially be represented using locally defined functions and their size will depend only weakly on the size of the entire system.
-This is confirmed directly in our calculations, see table \ref{tab:orbsizes}.
-The individual size of the orbitals, will of course vary greatly according to their type; for example core orbitals are simpler and therefore require less data to represent at a given precision, more diffuse function have more features and require more data to describe. As an illustration, in the molecules presented here, the largest orbital may be two to four times larger than the average, and the smallest a third of the average size.
-
-The number of orbitals together with the size of the orbitals can be seen as an indicator of how much computational resources (memory, cpu time, and network) are required to solve the equations. 
-
-\begin{table*}[t]
-    \centering
-    \begin{tabular}{cccccccccc}
-& $C_{20}H_{42}$& $C_{40}H_{82}$& $C_{80}H_{122}$& $C_{120}H_{242}$&  $C_{200}H_{442}$ & $C_{280}H_{562}$ &valinomycine & gramicidin\\
-orbital size (MB)  &  39 &  40   & 43  &  45  & 46 & 47 & 49 & 53\\
-    \end{tabular}
-    \caption{Average orbital size of different molecules (1e-5 prec). The average orbital size (in terms of number of nodes or coefficients) of the alkanes series is almost independent of the size of the molecule for the largest sizes}
-    \label{tab:orbsizes}
-\end{table*}
 
 
 
 \subsection{Scaling with precision}
-
-In table \ref{tab:prec} we have performed calculations with different precisions on two molecules, valinomycine (300 orbitals) and the gramicidin dimer (1008 orbitals).
-
-
-\begin{table*}[t]
-    \centering
-    \begin{tabular}{cccccccccc}
-&orbital size& Exchange &  Coulomb & Kinetic energy& Helmholtz & Total \\
- Valinomycine mw5& 49 & 71.4& 9.2& 2.7 & 7.4& 97.4\\
-Valinomycine mw6& 115 & 182.4& 25.3& 6.7 & 21.3&251.2\\
-Valinomycine mw7& 245 & 442.8& 78.8&17.1& 66.4&644.4  \\
-%Valinomycine &1E-8  & 531.0& 163.9& 12.9&32.7& 852.6 \\ older run, different setup
- Gramicidin mw5&55&115&18& 4& 8& 164\\
-  Gramicidin mw6&136&312 & 46& 15 & 26& 429\\
-  Gramicidin mw7&306& 813&126& 28& 82& 1131\\ %cycle 4
-    \end{tabular}
-    \caption{Time (in seconds) for different terms in the SCF cycle. Valinomycine using 16 compute nodes and gramicidin 64 compute nodes. The average size (in MB) for one orbital is also given.} %times for cycle 6. 12 MPI/cnode, 4 bank/cnode, 15 OMP
-    \label{tab:prec}
  
-\end{table*}
+In Table \ref{tab:prec} we have performed calculations with different precisions on two molecules, valinomycine (300 orbitals) and the gramicidin dimer (1008 orbitals). MW5 $(10^{-5})$, MW6 $(10^{-6})$, and MW7 $(10^{-7})$ denote the value of the precision parameter. 
 
 
-An increase in the number of coefficients describing the orbitals will clearly increase the computational cost of each operation using this orbital. In addition an increase in precision will also extend the range of orbitals with non-negligible interactions, i.e. gives less effective screening.
-We observe roughly a factor of 2.5 increase in computation time for each increase by a factor of ten of the precision. 
+\begin{table}[t]
+    \caption{Time (in seconds) for different terms in the \ac{SCF} cycle. 16 and 64 compute nodes used for valinomycine (300 orbitals) and gramicidin (1008 orbitals), respectively. Total timing is dominated by the \ac{HF} exchange. The additional cost for each precision increase is roughly a factor 2.5-3 for all contributions.%times for cycle 6. 12 MPI/cnode, 4 bank/cnode, 15 OMP
+    }
+    \label{tab:prec}
+    \begin{tabular}{c c S[table-format=3.1] S[table-format=3.1] S[table-format=2.1] S[table-format=2.1] S[table-format=4.1]}
+    \toprule
+    & & {Exchange} & {Coulomb} & {Kinetic energy} & {Helmholtz} & {Total} \\
+    \midrule
+ \multirow{3}{*}{Valinomycine} & MW5 &   71.4 &  9.2 &  2.7 &  7.4 &  97.4 \\
+                               & MW6 &  182.4 & 25.3 &  6.7 & 21.3 & 251.2 \\
+                               & MW7 &  442.8 & 78.8 & 17.1 & 66.4 & 644.4  \\
+    \midrule
+
+ \multirow{3}{*}{Gramicidin} & MW5 & 115.2 &  18.4 &  4.2 &  8.0 &  163.7 \\  %cycle 6
+                             & MW6 & 312.0 &  45.8 & 14.6 & 25.5 &  428.9 \\ %cycle 6
+                             & MW7 & 813.6 & 127.8 & 28.5 & 83.1 & 1196.9 \\ %cycle 6
+  \bottomrule
+    \end{tabular}
+\end{table}
+
+Our examples show a factor of 2.5 increase in computing time for each ten-fold increase in precision (one additional digit). A similar test with \acp{GTO}, performed increasing the basis set size, shows a much less favourable scaling: see examples from Table \ref{tab:MRC_ORCA_LSD} below.
 
 
+\subsubsection{Size of orbital representation}
 
-\subsection{Implicit screening} % new
+\label{sizes}
+
+In a localized approach, the orbital functions have negligible values in remote regions of space. In a \ac{LCAO} approach (if no special filtering is applied) the representation of an orbital will span the entire represented space, since the basis will increase with the system size. In the \ac{MRA} approach orbitals will essentially be represented using locally defined functions and their size will depend only weakly on the size of the entire system.
+This is confirmed directly in our calculations, see table \ref{tab:orbsizes}. Those results were obtained using a threshold parameter of $10^{-5}$ (MW5), $10^{-6}$ (MW6) and $10^{-7}$ (MW7). 
+The individual size of the orbitals will of course vary greatly according to their type; for example core orbitals are simpler and therefore require less data at a given precision, more diffuse function have more features and their representation requires more data. In the molecules presented here, the largest orbital may be two to four times larger than the average, and the smallest a third of the average size.
+Our empirical observations show a factor in the range  2 - 2.2 increase in orbital size for each ten-fold increase in precision. 
+An increase in the number of coefficients describing the orbitals will clearly increase the computational cost of each operation using this orbital. In addition an increase in precision will also extend the range of orbitals with non-negligible interactions, i.e. demands less aggressive screening. 
+The number of orbitals combined with the average size of the orbitals, can be taken as an indicator of the amount of computational resources (memory, CPU time, and network) required to solve the equations. 
+
+\begin{table}[b]
+\caption{Average orbital size of different molecules (MW5, MW6, MW7 precision). The average orbital size (in terms of number of \ac{MW} nodes or coefficients) of the alkanes series is almost independent of the size of the molecule for the largest sizes.} \label{tab:orbsizes}
+\begin{tabular}{cccccccccc} 
+\toprule
+& \ce{C20H42} & \ce{C40H82} & \ce{C80H162} & \ce{C160H322} &  valinomycine & gramicidin\\
+\midrule
+MW5 orbital size (MB)  &  35 &  43 &  43 &  46 &  49 &  55\\
+MW6 orbital size (MB)  &  80 &  85 &  90 &  92 & 115 & 136\\
+MW7 orbital size (MB)  & 158 & 167 & 176 & 180 & 245 & 306\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Implicit screening} 
 \label{sec:screen}
 
-Since it is at the heart of the MRA approach, we will here show explicitly how the adaptivity of the method leads to a significant reduction of the computation. We will consider linear alkanes of different sizes, as they are is easier to compare.
+It is instructive to see more in detail how the adaptivity of \ac{MRA} leads to a significant reduction of the computational cost. We will consider linear alkanes of different sizes, as they are easier to compare.
 
-As first illustration we will consider the evaluation  of the Fock matrix, equation \ref{eq:fock-matrix-definition} using the formulation from equation \ref{equ:sum}
+As a first illustration we will consider the evaluation  of the Fock matrix, Eq.~\eqref{eq:fock-matrix-definition} using the formulation from equation \eqref{equ:sum}.
 
 \begin{equation}
 \label{equ:sums}
- \braket{\phi_i | {\hat F} |\phi_j}_n = \sum_{k} c_{ikn} d_{jkn} \forall i,j  
+ \braket{\orbital_i | {\hat F} |\orbital_j}_n = \sum_{p} c^i_{np} d^j_{np} \quad\forall i,j  
 \end{equation}
+where $i$ and $j$ run over the occupied orbitals, $n$ runs over all \ac{MW} nodes ($n$ collects all values of $s$ and $l$ present in the tree) and
+$p$ runs over the \ac{MW} basis within that node, i.e. 3-dimensional polynomials. In the calculations presented in this paper, polynomials up to 7th order in each direction are used, leading to a total of 4096 3-dimensional polynomials (wavelet and scaling) for each \ac{MW} node. We underline that this choice might be sub-optimal for high precision calculations (MW7) but we have decided to keep the parameter fixed for ease of comparison.
 
-where i and j run over occupied orbitals, n run over all nodes and
-k runs over the MW basis within the node, i.e. 3 dimensional polynomials. In the calculations presented in his paper, polynomials up to 7th order in each direction are used, leading to a total of 4096 3-dimensional polynomials (wavelet and scaling) for each node.
-
- In our implementation, a MW basis which is the union of the basis for all orbitals is defined. This basis can be very large, but we do not define explicitly any function in this basis. In table \ref{tab:adapF} we show the resulting number of nodes defined in this basis (i.e. number of indices n). As expected, the total number of nodes is increasing linearly with system size.
+In theory, the \ac{MW} basis comprises all polynomials at the locally finest scale, in the union of all the orbital grids. This basis can be very large, but we never explicitly construct it in full. In Table \ref{tab:adapF} we show the total number of \ac{MW} nodes present in this basis (i.e. number of indices $n$). As expected, this number grows linearly with the size of the system.
  
- We define a block as one set of {i,j,n} indices. The total number of blocks  is the number of nodes n multiplied by the square of the number of orbitals. For each block equation \ref{equ:sum} defines the multiplication of the corresponding coefficients for all the polynomials defined within a node. The total number of blocks increases with the third power of the system size. However, if a given node is defined for one orbital i, but not for orbital j, this node will not contribute to the corresponding matrix element, and can be neglected. For localized orbitals, i and j will contribute only to local nodes and a large proportion of terms can therefore be neglected before being evaluated explicitly. This is a consequence of the orthogonality of the MW basis.
+Let us now define a \emph{block} as one set of $\lbrace i,j,n\rbrace$ indices. The total number of blocks  is the number of nodes $n$ multiplied by the square of the number of orbitals. For each block, Eq.~\eqref{equ:sum} defines the multiplication of the corresponding coefficients for all the polynomials defined within a node. The total number of blocks increases with the third power of the system size. However, if a given node is present for one orbital $i$, but not for orbital $j$, this node will not contribute to the corresponding matrix element, and can be omitted. This follows directly from the orthogonality of the underlying wavelet basis, Eq.~\ref{eq:wavelet_othrogonality}. For localized orbitals, $i$ and $j$ will contribute only to limited subsets of nodes and a large proportion of terms are either zero or have negligible numerical values in relation to the requested precision. They can therefore be neglected before being evaluated explicitly. This is a direct consequence of the disjoint support of the \ac{MW} basis, combined with localization.
  
- As shown in table \ref{tab:adapF}, the number of non-negligible terms is still increasing faster than linear. %this means the size of the non-neglected matrices is increasing with system size.
+As shown in Table \ref{tab:adapF}, the number of non-negligible terms is still increasing faster than linear. %this means the size of the non-neglected matrices is increasing with system size.
  %something like Nnodes = ax + b(N-x), where x is the number of nodes "close to the edges"; the matrices for  nodes close to the edges are smaller (less neighbors). If N increases, the proportion of large terms increases, for example a doubling of N:
  % (2N-x)/x > (N-x)/x  
- This is not necessarily synonym with computation time increasing faster than linear. To perform the calculations, the code must first fetch the relevant data in the bank, i.e. the matrices $c_{ikn}$ and  $d_{jkn}$ for a fixed n. Then the two matrices are multiplied. As shown in the table the total time used to fetch the data grows slightly slower than linearly. 
+This is not necessarily synonym with computation time increasing faster than linear. To perform the calculations, the code must first fetch the relevant data in the bank, \emph{i.e.}~the matrices $c^i_{np}$ and  $d^j_{np}$ for given $n$. Then the two matrices are multiplied. As shown in the table the total time used to fetch the data grows slightly slower than linearly. 
  % ? This reflects the fact that the average size of the matrices is increasing with system size: larger matrices will lead to more efficient data transfer. 
- For large systems, the total time to perform the matrix multiplication is proportional to the number of computed terms, and grows faster than linear. On the other hand, the matrix multiplication part is done so efficiently that it takes only a small fraction of the total time. In fact in our implementation we did not even use OpenMP parallelization (yet); an order of magnitude could be gained on the timings for the matrix multiplication part using OpenMP (and even more if GPU accelerators were used). 
+For large systems, the total time to perform the matrix multiplication is proportional to the number of computed terms, and grows faster than linear. On the other hand, the matrix multiplication part is done so efficiently that it takes only a small fraction of the total time. In fact in our implementation we did not even use threaded matrix multiplication (yet); for large systems, an order of magnitude could be gained on the timings for the matrix multiplication part using threaded matrix multiplication. 
 
-%total times do not look good and are therefore not shown; (time for saving in Bank varies a lot). In addition saving might be avoided (moved to other parts) in future versions.
-%PW: I do not understand why the computed blocks does not increase towards linear: Isn't  F Psi  local if Psi is local?
-\begin{table*}[t]
-    \centering
-    \begin{tabular}{cccccccccc}
-Alkane & Number nodes & blocks&  computed & neglected& time fetch& time multiply\\
-$C_{20}H_{42}$   & 6472  &    42462792 &  1558568 & 96.33\% &164 ms & 19 ms\\ 
-$C_{40}H_{82}$   & 12936 &   335314056 &  3800528 & 98.86\% &340 ms & 38 ms\\ 
-$C_{80}H_{162}$  & 26120 &  2691430920 & 10535312 & 99.61\% &532 ms & 97 ms\\ 
-$C_{160}H_{322}$ & 52136 & 21421691816 & 30814576 & 99.85\% &981 ms &270 ms\\ 
+\begin{table}[t]
+\caption{Number of terms and timings for the Fock matrix calculation 
+for \ce{C_{n}H_{2n+2}}. Precision MW4. The number of fully computed terms increases faster than linearly, but the fraction of time to perform the corresponding multiplications is small. %4 compute nodes, 32 MPI workers
+}
+\label{tab:adapF}
+\begin{tabular}{S[table-format=3] S[table-format=5] | S[table-format=5] S[table-format=2.1] S[table-format=2.2] | S[table-format=3] S[table-format=3]}
+\toprule
+{$n$} & {\ac{MW} nodes} & {blocks} &  {computed} & {neglected (\si{\percent})} & {fetch (\si{\milli\second})} & {multiply (\si{\milli\second})} \\
+\midrule
+ 20  &  6472 &    42\si{\mega} &  1.6\si{\mega} & 96.33 & 164 &  19 \\ 
+ 40  & 12936 &   335\si{\mega} &  3.8\si{\mega} & 98.86 & 340 &  38 \\ 
+ 80  & 26120 &  2691\si{\mega} & 10.5\si{\mega} & 99.61 & 532 &  97 \\ 
+160  & 52136 & 21422\si{\mega} & 30.8\si{\mega} & 99.85 & 981 & 270 \\ 
+% 20  &  6472 &    42462792 &  1558568 & 96.33\% & 164 ms &  19 ms\\ 
+% 40  & 12936 &   335314056 &  3800528 & 98.86\% & 340 ms &  38 ms\\ 
+% 80  & 26120 &  2691430920 & 10535312 & 99.61\% & 532 ms &  97 ms\\ 
+%160  & 52136 & 21421691816 & 30814576 & 99.85\% & 981 ms & 270 ms\\ 
+\bottomrule
     \end{tabular}
-    \caption{Number of terms and times to evaluate them in the Fock matrix calculation. Precision MW4. The number of fully computed terms increases faster than linearly, but the fraction of time to perform the corresponding multiplications is small.} %4 compute nodes, 32 MPI workers
-    \label{tab:adapF}
-\end{table*}
+\end{table}
 
-
-\begin{table*}[t]
-    \centering
-    \begin{tabular}{cccccccccc}
-Alkane & Number of orbitals& non-diagonal terms&  fully computed & fraction neglected \\
-$C_{20}H_{42}$ &81 & 3240 & 1146 & 65\% \\ 
-$C_{40}H_{82}$ &161 & 12880 & 2548 & 80\% \\ 
-$C_{80}H_{162}$ &321 &  51360& 5194& 90\% \\ 
-$C_{160}H_{322}$ & 641& 205120 & 10404& 95\% \\ 
-    \end{tabular}
-    \caption{Number of terms in the Exchange calculation. Precision MW4. The number of terms fully computed becomes proportional to the number of orbitals. } 
-    \label{tab:adapEx}
-\end{table*}
+\begin{table}[t]
+\caption{Number of terms in the Exchange calculation for the \ce{C_{n}H_{2n+2}} series. Precision MW4. The number of terms fully computed becomes proportional to the number of orbitals.} 
+\label{tab:adapEx}
+\begin{tabular}{S[table-format=3] S[table-format=3] S[table-format=6] S[table-format=5] S[table-format=2]}
+\toprule
+{$n$} & {Number of orbitals} & {non-diagonal terms} & {fully computed} & {fraction neglected} \\
+\midrule
+ 20 &  81 &   3240 &  1146 & 65\% \\ 
+ 40 & 161 &  12880 &  2548 & 80\% \\ 
+ 80 & 321 &  51360 &  5194 & 90\% \\ 
+160 & 641 & 205120 & 10404 & 95\% \\ 
+\bottomrule
+\end{tabular}
+\end{table}
 
  
-Table \ref{tab:adapEx} shows the total number of exchange terms and how many of them are actually fully computed. Since we exploit the symmetry of the Poisson part, the terms are computed in pairs and the number of pairs non-diagonal terms is $N(N-1)/2$, i.e. scales quadratically.    
-The computation of the exchange terms starts with the product of two orbitals. If the product has a norm smaller than a threshold, it can be neglected without having to apply the Poisson operator (which is the computationally expensive part). We see that a large fraction of the terms are effectively neglected, and thereby only the linearly scaling terms are left.
-
-
+Table \ref{tab:adapEx} shows the total number of exchange terms and how many of them are actually fully computed. Since the terms are computed in pairs and the number of non-diagonal pairs is $N(N-1)/2$, their number scales quadratically.    
+The computation of the exchange terms starts with the product of two orbitals. If the product has a norm smaller than a threshold, it can be neglected without having to apply the Poisson operator (which is the computationally expensive part). We see that a large fraction of terms is effectively neglected, and numbers of terms remaining scales linearly.
 
 \subsection{Comparison with ORCA  and LSDalton  }
 
-\begin{table*}[t]
+\begin{table}[ht]
     \centering
-    \caption{Comparison of results and computation times, for one SCF cycle (Hartree Fock, Valinomycine molecule). LSDalton$^+$ is performed using the accelerators "DENSFIT" and "ADMM". E is the total Hartree fock Energy and $\Delta$E is the atomization energy. The error is defined as the difference with the mw7 results. Time is the wall time per scf cycle. $^*$All computation where done on 4 compute nodes, except for MRChem mw5, mw6 and mw7 which were performed using 16 compute nodes}
-    \begin{tabular}{l|cc|cc|r}
-    \hline
-    \hline
-    Program/basis     & E [a.u.]   &Error &$\Delta$E [a.u.]& Error & Time [s]\\
-    \hline
-    LSDalton/pc-1     &-3770.20554 &2.6e-00 &-19.12076 &1.1e-01 &101     \\
-    LSDalton/pc-2     &-3772.56656 &3.0e-01 &-19.27598 &-4.0e-02 &1688    \\
-    LSDalton/pc-3     &-3772.83312 &3.3e-02 &-19.24894 &-1.4e-02 &26319   \\
-    LSDalton$^+$/pc-3     &-3772.82592 &4.0e-02 &-19.26353 &-2.9e-02 &1924\\
-                      &            &        &          &        &        \\
-    ORCA/pc-1         &-3770.19956 &2.6e-00 &-19.11479 &1.2e-01 &25      \\
-    ORCA/pc-2         &-3772.56922 &3.0e-01 &-19.27865 &-4.4e-02 &265     \\
-    ORCA/pc-3         &-3772.83357 &3.2e-02 &-19.24940 &-1.4e-02 &3933    \\
-                      &            &        &          &        &        \\
-    MRChem/mw4        &-3772.85028 &1.6e-02 &-19.21937 &1.5e-02 &117     \\
-    MRChem/mw5        &-3772.86560 &2.5e-04 &-19.23469 &2.5e-04 & 97$^*$ \\
-    MRChem/mw6        &-3772.86584 &1.0e-05 &-19.23493 &1.0e-05 &251$^*$ \\
-    MRChem/mw7        &-3772.86585 &-       &-19.23494 &-       &644$^*$ \\
-    \hline
-    \hline
+    \caption{Precision and performance comparison with ORCA and LSDalton, for one \ac{SCF} cycle (\ac{HF}, valinomycine molecule). $E$ is the total energy and $\Delta E$ is the atomization energy. The error is defined as the difference with the MW7 results. Wall time per \ac{SCF} cycle is reported. All computation where done on 4 compute nodes (i.e. 512 cores), except for MRChem MW5, MW6 and MW7 which were performed using 16 compute nodes (timings are marked with $^{*}$). Their timings have been multiplied by a factor 4 for ease of comparison.}\label{tab:MRC_ORCA_LSD}
+    \begin{tabular}{llccccr}
+    \toprule
+    Program & Basis     & E [a.u.]   &Error &$\Delta$E [a.u.]& Error & Time [s]\\
+    \midrule
+\multirow{4}{*}{LSDalton} & pc-1 &-3770.20554 &2.6e-00 &-19.12076 &1.1e-01   &101     \\
+                          & pc-2 &-3772.56656 &3.0e-01 &-19.27598 &-4.0e-02  &1688    \\
+                          & pc-3 &-3772.83312 &3.3e-02 &-19.24894 &-1.4e-02  &26319   \\
+                          & pc-3\tablefootnote{Performed using density fitting and ADMM to accelerate the construction of $J$ and $K$, respectively.\cite{Kumar2018-yc}} &-3772.82592 &4.0e-02 &-19.26353 &-2.9e-02  &1924    \\
+    \midrule                        
+\multirow{3}{*}{ORCA} & pc-1 &-3770.19956 &2.6e-00 &-19.11479 &1.2e-01   &25      \\
+                      & pc-2 &-3772.56922 &3.0e-01 &-19.27865 &-4.4e-02  &265     \\
+                      & pc-3 &-3772.83357 &3.2e-02 &-19.24940 &-1.4e-02  &3933    \\
+    \midrule                    
+\multirow{4}{*}{MRChem} & MW4 &-3772.85028 &1.6e-02 &-19.21937 &1.5e-02   &117     \\
+                        & MW5 &-3772.86560 &2.5e-04 &-19.23469 &2.5e-04   &390$^*$  \\
+                        & MW6 &-3772.86584 &1.0e-05 &-19.23493 &1.0e-05   &1005$^*$ \\
+                        & MW7 &-3772.86585 &-       &-19.23494 &-         &2577$^*$ \\
+    \bottomrule
     \end{tabular}    
-        \label{tab:MRC_ORCA_LSD}
-\end{table*}
+\end{table}
 
-Table \ref{tab:MRC_ORCA_LSD} shows the computation time for one SCF cycle for the Valinomycine molecule computed at the Hartree Fock level. The accuracy of the total energy and atomization energies are compared with the ORCA and LSDalton
-results using a pc-1, pc-2 and pc-3 basis set (the pc-4 basis was out of reach). 
+Table \ref{tab:MRC_ORCA_LSD} shows the computation time for one
+\ac{SCF} cycle for the valinomycine molecule computed at the
+\ac{HF} level. The accuracy of the total energy and atomization
+energies are compared with the ORCA and LSDalton results using a pc-1,
+pc-2 and pc-3 basis sets. Calculations with the pc-4 basis either did not run or did not converge.
 
-Even at the lowest precision (mw4), the results have the same quality as the pc-3 basis, but at a fraction of the computational cost. 
+We notice that at the lowest precision (MW4), the results have
+the same quality as the pc-3 basis, but at a fraction of the computational
+cost. \ac{MW} calculations show also a rapid convergence pattern with
+roughly a 2.5 times increase in computational time for each
+additional digit in the precision. \ac{GTO} bases show instead a much
+slower convergence trend: a three-fold error reduction has a cost of
+more than an order of magnitude. Run times (and possibly the pc-4 convergence) for ORCA\cite{Neese2022-ub}
+and LSDalton\cite{Aidas2014-rp} could likely be improved by tuning
+different input parameters. We did not attempt to further optimize all
+these settings: we are confident that the main picture would not
+change.
 
-It should be stressed that the run times given for ORCA\cite{orca} and LSDalton\cite{lsdalton} could probably be improved by tuning different input parameters, as we did not try to further optimize all the settings. Still the main picture should not be affected.
-
-Note that if the MW results where not available, it would not be easy to estimate the error of the GTO results. The accuracy of a GTO calculation will depend on the choice of basis set, the property of interest and is also affected by BSSE [REF].
-The ability to better control precision is a definitive advantage of the MRA method:
-The precision is chosen as a single number that can be chosen on a continuous scale. The resulting precision will be independent of the property of interest. %is this true?
-
+We stress also that it would not be possible to assess the error of
+\ac{GTO} calculations, were the precise \ac{MW} results not available.
+Reducing the error by increasing the basis set size is computationally
+demanding, if at all possible for large systems.
+The ability to better control precision is a definitive advantage of the \ac{MRA} method:
+the precision is determined by a single parameter that is independent on the property of interest and that can be chosen on a continuous scale.
 
 \section{Discussion}
-%Not ready
 
-We have presented a fully functional implementation of the multiwavelet method and demonstrated that it is capable of handling systems with thousands of electrons at the Hartree Fock (or DFT) level. The methodology results in an almost linear scaling with system size. There are certainly many alternative ways to approach the problem and we still expect that significant improvements in the efficiency of the algorithm will be implemented in the coming years. 
+We have presented a fully functional implementation of the
+multiwavelet method and demonstrated that it is capable of handling
+systems with thousands of electrons at the \ac{HF}
+level. The methodology is -- almost -- linear scaling with
+system size. The precision can be adjusted as a single, user-defined input variable,
+which is more intuitive compared to the choice of \ac{GTO} basis set
+in traditional methods. For high precision or large systems, the
+method is competitive with \ac{LCAO}
+methods. It is only recently that computers large enough to treat such
+systems at an affordable computational cost have been available; this
+may explain why \ac{MRA} methods have received relatively less attention so
+far.
 
-Specially the large memory footprint is a serious bottleneck that should be further addressed. %could be quantified: how large fraction of the coefficients are actually not negligible
+There are certainly many alternative ways to approach the problem and
+we still expect that significant improvements in the efficiency of the
+algorithm will be implemented in the coming years: especially the
+large memory footprint is a serious bottleneck that should be further
+addressed.
+%could be quantified: how much memory is used, how large fraction of the coefficients are actually not negligible
+
+The actual basis used in MRChem can be
+several order of magnitudes larger than what is used in large \ac{GTO}
+basis. Nevertheless, the computation times are still affordable and even
+competitive. We believe this is due to modern computers being
+extremely efficient at performing a large number of
+mathematical operations simultaneously. Accessing and transferring data is by comparison
+significantly more expensive. Moving data from main memory into
+cache, and data transfer between compute nodes can affect
+performance. The ability to
+partition the problem into independent parts is becoming more
+important than minimizing the overall number of mathematical
+operations \cite{Gavini}. In this respect, the \ac{MRA} framework has an advantage
+because of the orthogonality, by construction, of the basis. Similar points have been recently raised by other authors.
+\cite{Penchoff2021-cl, Ratcliff2017-nr}
+Algorithms that are designed by ``thinking parallel" are well-suited to effectively exploit the computational power of 
+modern, massively parallel computing clusters.\cite{Mattson2004-oc,McCool2012-tx}
+
+For low or medium precision, traditional basis set
+approaches are still faster.  It is however fair to say that finite
+basis set methods benefit from decades of development by thousands of
+scientists, while only a few groups are currently developing
+multiwavelet methods for quantum chemistry calculations. We can
+therefore expect that the potential for further optimizations of the
+method and extension of the range of application will increase widely
+in the future.
+
+The current work has focused on the \ac{HF} method. For \ac{DFT}
+methods, it has already been shown that
+\ac{MRA} methods can be competitive with respect to computation
+time.\cite{Bischoff2019-mr} The most demanding contribution, namely the exact exchange is
+also present for hybrid \ac{DFT} functionals and the present
+discussion therefore applies for \ac{DFT} without
+substantial modifications. The remaining issues concern
+correlated methods, which are still an active field of development for
+\ac{MRA} methods.\cite{Bischoff2013, Kottmann2017, Kottmann2020}
+
+\section{Code and data availability}
+The MRChem code is available at \url{https://github.com/MRChemSoft/mrchem} \cite{mrchem}. The molecule geometries, main input parameters and model outputs can be found at \url{https://doi.org/10.18710/96NRIX} \cite{96NRIX_2022}.
+
+\section{Author contributions}
+\label{author_contrib}
+
+We use the CRediT taxonomy of contributor roles.\cite{Allen:2014kj,Brand:2015jr}
+The ``Investigation'' role also includes the ``Methodology'', ``Software'', and ``Validation'' roles.
+The ``Analysis'' role also includes the ``Formal analysis'' and ``Visualization''
+roles. The ``Funding acquisition'' role also includes the ``Resources'' role.
+We visualize contributor roles in the following authorship attribution matrix, as suggested in Ref.~\citenum{authorship-attribution}.
 
 
-It is remarkable that even if the actual basis used in MRChem can be several order of magnitudes larger than what is used in large GTO basis, the computation times are still affordable and even competitive. We believe this is due to the fact that modern computers are extremely efficient when it comes to performing a large number of mathematical operations simultaneously. The parts which are most time consuming are usually the transfer of data from main memory into cache, and transfer of data between compute nodes. The ability to partition the problem into independent parts is becoming more important than minimizing the overall number of mathematical operations. In this respect, the MRA framework has an advantage because of the orthogonality of the initial basis. See also the discussion about the relationship between HPC and Computational Chemistry in \cite{penchoff2021} and \cite{ratcliff2016}.
+\begin{table}
+  \caption{Levels of contribution: \textcolor{blue!100}{major}, \textcolor{blue!25}{support}.}
+  \label{tbl:example}
+  \begin{tabular}{lccccccc}
+    \toprule
+                              & PW                   & MB                   & AB                   & GAGS                 & SRJ                  & RDRE                 & LF  \\
+    \midrule
+    Conceptualization         & \cellcolor{blue!100} &                      &   &                      & \cellcolor{blue!100} &                      & \cellcolor{blue!25}  \\ 
+    Investigation             & \cellcolor{blue!100} & \cellcolor{blue!25}  & \cellcolor{blue!25}  & \cellcolor{blue!25}  & \cellcolor{blue!100} & \cellcolor{blue!25}  & \cellcolor{blue!25}  \\ 
+    Data curation             & \cellcolor{blue!100} &                      &  \cellcolor{blue!25} &                      &                      &                      &                      \\ 
+    Analysis                  & \cellcolor{blue!100} &                      &                      &                      & \cellcolor{blue!25}  & \cellcolor{blue!25}  & \cellcolor{blue!25}  \\ 
+    Supervision               &                      &                      &                      &                      &                      &                      &                      \\ 
+    Writing -- original draft & \cellcolor{blue!100} &                      &                      &                      & \cellcolor{blue!25}  &                      & \cellcolor{blue!25}  \\
+    Writing -- revisions      & \cellcolor{blue!100} & \cellcolor{blue!25}  & \cellcolor{blue!25}  & \cellcolor{blue!25}  & \cellcolor{blue!25}  & \cellcolor{blue!25}  & \cellcolor{blue!25}  \\
+    Funding acquisition       &                      &                      &                      &                      &                      &                      & \cellcolor{blue!100} \\ 
+    Project administration    & \cellcolor{blue!100} &                      &                      &                      & \cellcolor{blue!100} &                      & \cellcolor{blue!100} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
-%GTO methods have been developed at a time where computer power was a scarce resource. In modern computers the total number of mathematical operations that can be performed is huge. For a complex scientific software, the total number of mathematical operations performed will usually be small compared to the maximum theoretically available on a supercomputer. This is even more true for GPU based computers. Therefore the focus of modern software should shift from minimizing the number of operations, towards finding new ways of partitioning the algorithm into independent parts.
-
-For DFT methods, it had already been shown \cite{bischoff2019} MOREREF that MRA methods can be competitive wrt computation time.
-
-For low or medium precision, the computer resources required are still larger than traditional basis set approaches. 
-
-
-
-It is fair to say that finite basis set method benefit from decades of development by thousands of scientists, while only a few groups are actually developing multiwavelet methods for quantum chemistry calculations. We can therefore expect that the potential for further optimizations of the method and extension of the range of application will still increase widely in the future.
-
-The advantages of the MRA approach is clearer for large systems and/or high precision. We have shown that such large systems are now affordable on large computers.
-
-%say something about status for correlated methods?
-
-
-\begin{acknowledgments}
-SIGMA2, nn9330k, Hylleraas \dots.
-\end{acknowledgments}
-
-
-
-
-%\bibliographystyle{plain}
-%\bibliography{references}
-
-%Goedecker, S. (1999). Linear scaling electronic structure methods. Reviews of Modern Physics, 71(4), 1085–1123. doi:10.1103/revmodphys.71.1085 
-
-%Real space methods:
-% DOI: 10.1039/C5CP90198G (Editorial) Phys. Chem. Chem. Phys., 2015, 17, 31357-31359
-%Real-space numerical grid methods in quantum chemistry
-%Luca Frediani and Dage Sundholm
-%https://pubs.rsc.org/en/content/articlehtml/2015/cp/c5cp90198g?page=search
+\begin{acknowledgement}
+We acknowledge support from the Research Council of Norway through its Centres of Excellence scheme, project number 262695. 
+The computations were performed on resources provided by Sigma2 - the National Infrastructure for High Performance Computing and 
+Data Storage in Norway, through grant of computer time, no.
+nn4654k and nn9330k.
+R.D.R.E. acknowledges support from the European High-Performance Computing  Joint Undertaking under Grant Agreement No. 951732.
+\end{acknowledgement}
 
 
-%https://pubs.rsc.org/en/journals/journalissues/cp#!issueid=cp017047&type=current&issnprint=1463-9076
 
-%MP2:
-%https://aip.scitation.org/doi/10.1063/1.5141880
-%Direct determination of optimal pair-natural orbitals in a real-space representation: The second-order Moller–Plesset energy
-% J. Chem. Phys. 152, 074105 (2020); https://doi.org/10.1063/1.5141880
-%Jakob S. Kottmann1,a), Florian A. Bischoff1,b), and Edward F. Valeev
-
-%Predictive computation of properties of molecules and materials requires a highly precise numerical representation of many-body electronic wave functions/operators. Accurate electronic wave functions, such as in the coupled-cluster method, are traditionally represented in the Linear Combination of Atomic Orbitals (LCAO) representation using pre-optimized sequences of atom-centered basis sets (represented by analytic Gaussian-type or Slater-type functions, or represented numerically1). Recently, many-body electronic structure computations have also been demonstrated in the (augmented) plane-wave (PW) representation.2 Both representations suffer from slow convergence to the basis set limit, requiring the use of basis set extrapolation3,4 or explicit correlation.5,6 Although it is possible to closely match experimental chemical energy differences, such as atomization energies of small molecules,7 with the LCAO approaches, such computations suffer from high cost and poor conditioning and do not lend themselves to fast (reduced-scaling) reformulation due to the fully dense representation of electronic states and operators. The known bias of common AO basis sets toward ground-state energies makes it difficult to attain similar accuracy for excited states and response properties. Meanwhile, the plane wave representation struggles with the description of position-localized (e.g., intra-atomic) features of the electronic wave functions and thus also do not naturally lend themselves to low-order formulations.
-%Grid-based real-space numerical representations of many-body wave functions, such as finite difference and finite/spectral elements, provide an alternative to the LCAO and PW representations with a number of attractive features, such as the ability to resolve spatially localized features, systematic bias-free improvability, and good conditioning. The main bottleneck to routine use of such representations is the impractical size of the 3k-dimensional grid needed to represent a k-particle state. Even pair theories (k = 2) such as MP2 and CCSD become prohibitively expensive for molecular systems due to the grid size; only symmetry-based dimension reduction in atoms makes the application of pair theories possible.8–12
-
-\begin{thebibliography}{}
+\bibliography{references}
 
 
-\bibitem[Bischoff (2019)]{bischoff2019}Florian A. Bischoff https://doi.org/10.1016/bs.aiq.2019.04.003  Computing accurate molecular properties in real space using multiresolution analysis,  2019
-
-\bibitem[Ratcliff (2020)]{ratcliff2020}Laura E. Ratcliff,  William Dawson2, Giuseppe Fisicaro, Damien Caliste, Stephan Mohr, Augustin Degomme, Brice Videau, Viviana Cristiglio, Martina Stella, Marco D’Alessandro, Stefan Goedecker, Takahito Nakajima2, Thierry Deutsch, and Luigi Genovese J. Chem. Phys. 152, 194110 (2020) https://doi.org/10.1063/5.0004792 Flexibilities of wavelets as a computational basis set for large-scale electronic structure calculations
-
-\bibitem[Harrison (2016)]{madness2016}R. J. Harrison, G. Beylkin, F. A. Bischoff, J. A. Calvin, G. I. Fann, J. Fosso-Tande, D. Galindo, J. R. Hammond, R. Hartman-Baker, J. C. Hill, J. Jia, J. S. Kottmann, M.-J. Yvonne Ou, J. Pei, L. E. Ratcliff, M. G. Reuter, A. C. Richie-Halford, N. A. Romero, H. Sekino, W. A. Shelton, B. E. Sundahl, W. S. Thornton, E. F. Valeev, Á. Vázquez-Mayagoitia, N. Vence, T. Yanai, and Y. Yokoi, SIAM J. Sci. Comput. 38, S123 (2016). https://doi.org/10.1137/15m1026171
-
-\bibitem[Ratcliff (2016)]{ratcliff2016}Laura E. Ratcliff, Stephan Mohr, Georg Huhs, Thierry Deutsch, Michel Masella, Luigi Genovese  https://doi.org/10.1002/wcms.1290 Challenges in large scale quantum mechanical calculations
-
-\bibitem[Helgaker (2000)]{trygve},T. Helgaker, P. Jørgensen, and J. Olsen., Molecular Electronic‐Structure Theory  John Wiley \& Sons, LTD, Chichester (2000)
-
-\bibitem[penchoff (2021)]{penchoff2021} https://pubs.acs.org/doi/full/10.1021/bk-2021-1388.ch001  HPC challenges: An Introduction to High Performance Computing and Its Intersection with Advances in Modeling Rare Earth Elements and Actinides
- 
-\bibitem[ORCA (2020)]{orca} F. Neese, F. Wennmohs, U. Becker, and C. Riplinger, “The ORCA quantum chemistry program package”, J. Chem. Phys. 152, 224108 (2020). https://doi.org/10.1063/5.0004608
- 
-\bibitem[LSDalton (2014)]{lsdalton} K. Aidas, C. Angeli, K. L. Bak, V. Bakken, R. Bast, L. Boman, O. Christiansen, R. Cimiraglia, S. Coriani, P. Dahle, E. K. Dalskov, U. Ekström, T. Enevoldsen, J. J. Eriksen, P. Ettenhuber, B. Fernández, L. Ferrighi, H. Fliegl, L. Frediani, K. Hald, A. Halkier, C. Hättig, H. Heiberg, T. Helgaker, A. C. Hennum, H. Hettema, E. Hjertenæs, S. Høst, I.-M. Høyvik, M. F. Iozzi, B. Jansik, H. J. Aa. Jensen, D. Jonsson, P. Jørgensen, J. Kauczor, S. Kirpekar, T. Kjærgaard, W. Klopper, S. Knecht, R. Kobayashi, H. Koch, J. Kongsted, A. Krapp, K. Kristensen, A. Ligabue, O. B. Lutnæs, J. I. Melo, K. V. Mikkelsen, R. H. Myhre, C. Neiss, C. B. Nielsen, P. Norman, J. Olsen, J. M. H. Olsen, A. Osted, M. J. Packer, F. Pawlowski, T. B. Pedersen, P. F. Provasi, S. Reine, Z. Rinkevicius, T. A. Ruden, K. Ruud, V. Rybkin, P. Salek, C. C. M. Samson, A. Sánchez de Merás, T. Saue, S. P. A. Sauer, B. Schimmelpfennig, K. Sneskov, A. H. Steindal, K. O. Sylvester-Hvid, P. R. Taylor, A. M. Teale, E. I. Tellgren, D. P. Tew, A. J. Thorvaldsen, L. Thøgersen, O. Vahtras, M. A. Watson, D. J. D. Wilson, M. Ziolkowski, and H. Ågren, "The Dalton quantum chemistry program system", WIREs Comput. Mol. Sci. 2014, 4:269–284 (doi:10.1002/wcms.1172)
-
-\bibitem[MPI3]{mpi}Message Passing Interface Forum, "MPI: A Message-Passing Interface Standard Version 3.1", (2015). https://www.mpi-forum.org/docs/mpi-3.1/mpi31-report.pdf
-
-\bibitem[OpenMP]{omp} https://www.openmp.org
-
-\end{thebibliography}
 \end{document}

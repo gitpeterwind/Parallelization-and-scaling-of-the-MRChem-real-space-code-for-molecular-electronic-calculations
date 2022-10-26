@@ -1,0 +1,102 @@
+%%
+% German Latex Letter Template 
+% Use if you want to crate a Letter in DIN A4. You can use it in English and German 
+% as well, just set language at begining of plain text.
+% Created by Jan Boelmann @ Nov. 2016 Jan.boelmann@live.de
+%%
+
+\documentclass[
+    sender,
+    paper=a4,
+    version=last,
+    fontsize=11pt,
+    DIV=13,
+    BCOR=0mm]{scrlttr2}
+\parskip3mm
+\parindent0mm % if you want to have no lineskip
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{csquotes}
+
+% Set Font: sans serif Latin Modern
+\usepackage{lmodern}
+\renewcommand*\familydefault{\sfdefault}
+\usepackage[T1]{fontenc}
+\usepackage[nolist]{acronym}
+
+\usepackage{hyperref}
+\hypersetup{colorlinks, 
+            breaklinks, 
+            urlcolor=blue, 
+            linkcolor=blue, 
+            citecolor=blue} % Set link colors
+
+
+% Set Page layout:
+\usepackage{changepage}
+%\changepage{text height}{text width}{even-side margin}
+%{odd-side margin}{column sep.}
+%{topmargin}{headheight}{headsep}{footskip}
+\changepage{+3cm}{}{}{}{}{}{}{}{-5cm}
+\LoadLetterOption{sender}
+
+\begin{document}
+% Set Appendix text at very end (dubble point will be set automatically)
+\setkomavar*{enclseparator}{Appendix}
+% subject, date, place:
+\setkomavar{subject}{Cover letter}
+\setkomavar{date}{\today}
+\setkomavar{place}{Troms\o}
+
+\begin{acronym}
+\acro{GTO}{Gaussian Type Orbital}
+\end{acronym}
+
+\newcommand{\mrchem}{\href{https://github.com/MRChemSoft/mrchem}{\textsc{MRChem}}}
+\newcommand{\lsdalton}{\href{http://www.daltonprogram.org/}{\textsc{LSDalton}}}
+\newcommand{\bestguess}{\href{https://github.com/MRChemSoft/best-guess}{\textsc{bestguess}}}
+\newcommand{\blob}{\href{https://github.com/densities/blob}{\textsc{blob}}}
+\newcommand{\gautogrid}{\href{https://github.com/dgasmith/gau2grid/blob/master/docs/source/index.rst}{\textsc{gau2grid}}}
+
+% Set recipient of letter
+\begin{letter}{
+    \textbf{Laura Gagliardi} \\
+    University of Chicago \\
+    United States
+  }
+\opening{}
+
+My coauthors and I would like to submit a manuscript entitled 
+\emph{Parallelization and scaling of the MRChem real-space code for molecular electronic calculations}
+for publication in the Journal of Chemical Theory and Computation, as an Article.
+
+Real-space methods for molecular electronic calculations are not the most widespread. In this article we show that advances in methodology and availability of more powerful computers, allows to use those methods on relatively large systems, and that they offer appealing advantages compared to more traditional methods.
+
+
+The central points of our work can be summarized as follows:
+\begin{enumerate}
+\item Almost linear scaling with system size is achieved in practical applications.
+\item Significantly shorter run time in some test examples, compared to standard software.
+\item Avoid completely the need to choose a basis set.
+\end{enumerate}
+
+We can propose the following people as referees:
+\begin{itemize}
+    \item Florian Bischoff, 
+    Humboldt-Universität zu Berlin, Germany, 
+    florian.bischoff@chemie.hu-berlin.de
+    \item David Bowler,
+    University College London, Great Britain,
+    david.bowler@ucl.ac.uk
+    \item Frank Jensen,
+    Aarhus University, Denmark,
+    frj@chem.au.dk
+\end{itemize}
+
+A pdf preprint has been sent to arXiv.
+
+\closing{Sincerely,} 
+\end{letter}
+
+\end{document}
+
