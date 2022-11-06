@@ -39,7 +39,9 @@
 
 Dear Editor,\\
 
-We would like to thank the reviewers for their comments on our manuscript. 
+We would like to thank the reviewers for their constructive comments on our manuscript. We have thoroughly addressed their remarks. For each of them, we provide here a short summary of how we have addressed it. Additionally we provide a version of the manuscript which highlights the differences in the text for ease of comparison.
+
+We hope that with the current modification, you will find our manuscript suitable for publication in the Journal of Chemical Theory and Computation.
 
 Yours faithfully,
 \\
@@ -70,65 +72,118 @@ Luca Frediani
 Please include an accessed by date for any reference citing a URL.
 \end{formal}
 
+We have corrected the URL references to include an ``Accessed" field.
+
+\clearpage
+
 {\bf Reviewer 1}
 
 \begin{formal}
-The article "The MRChem multiresolution analysis code for molecular electronic structure calculations: performance and scaling properties" by Wind and coauthors describes implementation and parallel performance of the MRChem program package. The paper is important and should definitely be published, but the presentation is not very concise and can be improved.
+The article ``The MRChem multiresolution analysis code for molecular electronic structure calculations: performance and scaling properties" by Wind and coauthors describes implementation and parallel performance of the MRChem program package. The paper is important and should definitely be published, but the presentation is not very concise and can be improved.
+\end{formal}
 
+We thank the reviewer for their assessment of our work.
+
+\begin{formal}
 To me the article has too many implementation details, that distract from the core message of the article, which would be performance and scaling with system size.
 \end{formal}
+
+We decreased the level of detail in the paper by moving Sections 2.1 (\emph{The basic operations in the SCF iterations}) and 3 (\emph{Function representation with Multiwavelets}) to the Supporting Information. They are now Sections SI 2 and SI 1, respectively, in the accompanying PDF.
 
 \begin{formal}
 General remarks
  - Section 3 can be omitted entirely, in my opinion it is sufficient to state that the space is adaptively partitioned into 3d nodes/intervals. If necessary this chapter can be shortened and incorporated into Section 4
  \end{formal}
  
+ Section 3 has been moved to the Supporting Information as Section SI 1.
+ 
  \begin{formal}
  - I also feel that Sec 2.1 could be better included in Sec. 4
  \end{formal}
  
+Section 2.1 has been moved to the Supporting Information as Section SI 2.
+ 
 \begin{formal}
- - The level of detail is unnecessarily high in Section 4, e.g. explaining the "compressed" and "reconstructed" tree states
+ - The level of detail is unnecessarily high in Section 4, e.g. explaining the ``compressed" and ``reconstructed" tree states
  \end{formal}
  
- \begin{formal}
- - The authors should always make clear what a "node" is: an MRA node (3d interval) or a compute node (possible also an MPI rank?). Also, they write about storing data "together" or "separately" which I assume refers to storing them on the same or different compute nodes? The same is true for statements that data are "locally accessible". This should be clarified.
- \end{formal}
+ We have left mentions of the compressed and reconstructed representations as we believe this is needed to understand how screening works in the MRA settings.
  
  \begin{formal}
- - Sec 4.2: the naming "MW nodes in real space" confuses me, but I cannot come up with a better suggestion.
+ - The authors should always make clear what a ``node" is: an MRA node (3d interval) or a compute node (possible also an MPI rank?). Also, they write about storing data ``together" or ``separately" which I assume refers to storing them on the same or different compute nodes? The same is true for statements that data are ``locally accessible". This should be clarified.
  \end{formal}
+ 
+ We stated more explicitly when a ``node" is meant as a node in the MRA tree representation and when it is instead meant as a compute node. 
+ We clarified the meaning of storing data ``together" and ``separately", as well as explaining that ``locally accessible" refers to data local to the given compute node.
+ 
+ 
+
+ \begin{formal}
+ - Sec 4.2: the naming ``MW nodes in real space" confuses me, but I cannot come up with a better suggestion.
+ \end{formal}
+ 
+ The term ``MW node" is commonly used in the MW literature to refer to each cube in the grid where the scaling and wavelet functions are supported. We have at least tried to be as consistent as possible in the text specifying ``MW node" unless it was obvious (e.g repetition in the same sentence).
  
 \begin{formal}
 Minor remarks:
- - Sec 2.1: What is the difference between "Product of two MW functions" and "Application of a multiplicative operator"?
+ - Sec 2.1: What is the difference between ``Product of two MW functions" and ``Application of a multiplicative operator"?
  \end{formal}
+ 
+ There is, technically, no difference, as both a multiplicative operator and MW function(s) are represented as trees. There might be properties of the operator that allow for its more efficient application, thus it is convenient to keep the treatment of the two cases separate.
  
  \begin{formal}
  - Sec 2.1.1: derivatives are defined in a weak sense, but they are numerically not well-behaved.
  \end{formal}
  
+ This section has now been moved to the SI. The issue of derivatives in a Multiwavelet representation has been investigated both formally and numerically. The latest publication, referenced in Section 2, is by Anderson \emph{et. al.} (DOI: 10.1016/j.jcpx.2019.100033). As written in the text, as long as one avoids ``repeated iterations" (\emph{e.g.} time propagation) their application does not pose a fundamental problem. By applying the integral Helmholtz operator at each iteration the numerical artifacts caused by derivatives, are effectively removed.
+ 
  \begin{formal}
  - Sec 2.1.2 and 2.1.3: summing and applying does not commute: is there any numerical difference between both approaches?
  \end{formal}
  
+% The two approaches can lead to different numerical results, since floating-point arithmetic is not associative. This is especially true in a parallel implementation, like ours. MRChem offers an option (\texttt{numerically\_exact}) that forces the use of MPI algorithms giving results invariant with respect to the number of compute nodes.
+ 
+ The two approaches can lead to different results, since the adaptivity may truncate the intermediates. The differences in the final results should however always be within the required precision.
+ 
  \begin{formal}
  - Eq. 17: $\sum_p$ instead of $\sum_k$
  \end{formal}
+
+This has been fixed.
+
+
+
+
+
 
 \begin{formal}
 Suggestions:
  - The authors state correctly that data sparsity comes with MRA, even if orbitals have non-vanishing contributions from all regions. This is an important statement and has implications for both performance and precision and could be placed more prominently.
 \end{formal}
 
+A sentence in the abstract and one in the introduction have been added to underline the implication for both performance and precision of using a MW representation.
+
+
+
+
+
+
+
+
+
+
+
 \begin{formal}
  - The authors might mention that many first-order molecular properties, including gradients, can be computed at little extra cost via the Hellmann-Feynman theorem.
 \end{formal}
+
+A sentence emphasizing the possibility to exploit formal results such as the Hellmann--Feynman theorem has been added at the end of Section 2
 
 \begin{formal}
  - It would be interesting to see scaling properties with respect to MPI ranks and compute nodes for a given molecule/precision.
 \end{formal}
 
+We added Section 4.3 (\emph{Scaling with number of compute nodes}) with an analysis of scaling with respect to the number of compute nodes for the case of valinomycine at MW4 level.
 
 
 \clearpage

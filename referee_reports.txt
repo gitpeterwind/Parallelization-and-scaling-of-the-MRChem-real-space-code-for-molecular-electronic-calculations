@@ -27,12 +27,22 @@ General remarks
 
 
 
+
+
+
+
  - The authors should always make clear what a "node" is: an MRA node (3d interval) or a compute node (possible also an MPI rank?). Also, they write about storing data "together" or "separately" which I assume refers to storing them on the same or different compute nodes? The same is true for statements that data are "locally accessible". This should be clarified.
 
 
 
- - Sec 4.2: the naming "MW nodes in real space" confuses me, but I cannot come up with a better suggestion.
 
+
+
+
+
+
+
+ - Sec 4.2: the naming "MW nodes in real space" confuses me, but I cannot come up with a better suggestion.
 
 
 
@@ -60,6 +70,13 @@ Minor remarks:
 
 
 
+
+
+
+
+
+
+
  - Eq. 17: \sum_p instead of \sum_k
 
 
@@ -69,6 +86,13 @@ Minor remarks:
 
 Suggestions:
  - The authors state correctly that data sparsity comes with MRA, even if orbitals have non-vanishing contributions from all regions. This is an important statement and has implications for both performance and precision and could be placed more prominently.
+
+
+
+
+
+
+
 
 
 

@@ -1,0 +1,261 @@
+\documentclass[journal=jctcce, manuscript=suppinfo]{achemso}
+
+\usepackage[utf8]{inputenc}
+
+\setlength {\marginparwidth }{2cm}
+
+\usepackage[table]{xcolor}
+\usepackage[version=4]{mhchem}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\graphicspath{{img/}}
+ \DeclareGraphicsExtensions{.pdf} %png for low res. pdf for high res. I also have svg as well but other packages needed
+\usepackage{caption}
+\usepackage{subcaption}
+ \DeclareCaptionSubType*[arabic]{figure}
+\usepackage{braket}
+\usepackage{multicol}
+\usepackage{multirow}
+\usepackage{todonotes}
+\setlength{\columnsep}{1cm}
+\usepackage{booktabs}
+\usepackage[nohyperlinks,nolist]{acronym}
+\usepackage{siunitx}
+\usepackage{mathtools}
+% to submit to the arXiv:
+% 1. uncomment the following
+% 2. clear cached files
+% 3. recompile from scratch
+%\usepackage[newfloat,finalizecache=true,cachedir=.]{minted}
+% then:
+% 4. comment the line with the finalizecache option
+% 5. uncomment the line with the frozencache option
+% 6. recompile (to check that it works)
+%\usepackage[newfloat,frozencache=true,cachedir=.]{minted}
+\usepackage[newfloat]{minted}
+%\captionsetup[listing]{position=top}
+\setminted{
+  fontsize=\footnotesize,
+  xleftmargin=\parindent,
+  xrightmargin=\parindent,
+  breaklines,
+  frame=lines
+}
+\BeforeBeginEnvironment{minted}{\vspace{-7pt}}
+\AfterEndEnvironment{minted}{\vspace{-7pt}}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{tablefootnote}
+\usepackage{multirow}
+%\usepackage{hyperref}
+\usepackage{xr}
+
+\makeatletter
+\newcommand*{\addFileDependency}[1]{% argument=file name and extension
+  \typeout{(#1)}
+  \@addtofilelist{#1}
+  \IfFileExists{#1}{}{\typeout{No file #1.}}
+}
+\makeatother
+
+\newcommand*{\myexternaldocument}[1]{%
+    \externaldocument{#1}%
+    \addFileDependency{#1.tex}%
+    \addFileDependency{#1.aux}%
+}
+\myexternaldocument{main}
+
+\input{acronyms}
+\input{newcommands}
+
+\title{The MRChem multiresolution analysis code for molecular electronic structure calculations: performance and scaling properties}
+
+\author{Peter Wind}
+\affiliation{Department of Chemistry, UiT - The Arctic University of Norway, N-9037 Tromsø, Norway}
+\email{peter.wind@uit.no}
+
+\author{Magnar Bjørgve}
+\affiliation{Department of Chemistry, UiT - The Arctic University of Norway, N-9037 Tromsø, Norway}
+
+\author{Anders Brakestad}
+\affiliation{Department of Chemistry, UiT - The Arctic University of Norway, N-9037 Tromsø, Norway}
+
+\author{Gabriel A. Gerez S.}
+\affiliation{Department of Chemistry, UiT - The Arctic University of Norway, N-9037 Tromsø, Norway}
+
+\author{Stig Rune Jensen}
+\affiliation{Department of Chemistry, UiT - The Arctic University of Norway, N-9037 Tromsø, Norway}
+\email{stig.r.jensen@uit.no}
+
+\author{Roberto Di Remigio Eikås}
+\affiliation{Algorithmiq Ltd, Kanavakatu 3C, FI-00160 Helsinki, Finland}
+
+\author{Luca Frediani}
+\affiliation{Department of Chemistry, UiT - The Arctic University of Norway, N-9037 Tromsø, Norway}
+\email{luca.frediani@uit.no}
+
+\renewcommand{\theequation}{SI \arabic{equation}}
+\renewcommand{\thesection}{SI \arabic{section}}
+
+\begin{document}
+
+\maketitle
+
+A note on this document: equations and sections referenced in the Supporting Information refer to the main manuscript, unless the reference number contains the SI prefix.
+
+\section{Function representation with Multiwavelets}\label{sec:func_rep}
+
+In order to make the implementation details clearer to the reader we will here introduce a few simple concepts of \ac{MRA}. We will by no means be exhaustive and refer the interested reader to the rich literature on the subject for further details.\cite{Alpert:2002cx,Frediani.10.1080/00268976.2013.810793,Beylkin.10.1002/cpa.3160440202,Bischoff2019-mr}. In particular, the 2002 article by \citeauthor{Alpert:2002cx} is a very pedagogical introduction to \acp{MW}.~\cite{Alpert:2002cx}
+
+A one dimensional \ac{MRA} is obtained by defining a set of scaling functions $\scaling_p(x)$, which fulfill the so called self-similarity properties:
+the $k+1$ scaling functions $(p=0,1 \ldots k)$ in interval $[l/2^s,(l+1)/2^s]$ can be obtained by translating and dilating the original functions defined in $[0,1]$:
+\begin{equation}
+    \scaling^s_{pl}(x) = 2^{s/2} \scaling_p(2^s x - l).
+\end{equation}
+
+The wavelet functions are  the orthogonal complement of the scaling functions between two successive scales $s$ and $s+1$ and they also fulfill a self-similarity relationship:
+\begin{equation}
+    \wavelet^s_{pl}(x) = 2^{s/2} \wavelet_p(2^s x - l).
+\end{equation}
+
+For details about the construction of the Multiwavelets used in this work we refer the reader to the original work of \citeauthor{Alpert.10.1137/0524016}. \cite{Alpert.10.1137/0524016}
+For our purposes, it suffices to say that this construction provides a basis which is dense in $L^2$ and there are two equivalent ways to project a function, commonly called \emph{reconstructed} and \emph{compressed} representation. The reconstructed representation of a function $f$ makes use of the scaling functions at the finest scale $S$ (largest $s$ value), 
+\begin{equation}\label{eq:reconstructed_func}
+  f = \sum_{l=0}^{2^S-1}\sum_{p=0}^k c^S_{pl} \scaling^S_{pl}, \qquad c^s_{pl} = \braket{f | \scaling^s_{pl}}. 
+\end{equation}
+The compressed representation makes use of the scaling functions at $s=0$ and all successive wavelet functions from scale $s=0$ to scale $s=S-1$.
+\begin{equation}\label{eq:compressed_func}
+  f = \sum_{p=0}^k c_{p} \scaling_p + \sum_{s=0}^{S-1} \sum_{l=0}^{2^s-1} \sum_{p=0}^k d^s_{pl} \wavelet^s_{pl}, \qquad d^s_{pl} = \braket{f | \wavelet^s_{pl}}
+\end{equation}
+In practice, the \emph{reconstructed} representation describes the function as a piece-wise polynomial on a grid. Such a grid is generally \emph{adaptive} and the finest scale $S$ is therefore not a uniform value. The \emph{compressed} representation is instead used to determine the level of refinement which is necessary to keep the error under control.  Both function representations can be expressed as a tree structure where each pair of indices $sl$ designates a \ac{MW} node in the tree. The range of $l$ is both scale- and function-dependent: it runs over all nodes included at the given scale for the selected function/orbital. For the reconstructed representation the nodes in use are the \emph{leaf} nodes in the tree (nodes with no further ramifications), whereas for the compressed representation, the nodes in use are all the \emph{branch} nodes, starting from the single root node ($s=0$).
+Switching from one representation to the other is performed through the fast \ac{MW} transform.\cite{Beylkin.10.1002/cpa.3160440202,Frediani.10.1080/00268976.2013.810793}. For the purpose of the present discussion, suffices to say that the \ac{MW} transform is local and fast: the computational cost of the \ac{MW} transform scales as the number of nodes in the function tree and requires only a few small matrix multiplications for each node.
+
+For operator applications in the non-standard form\cite{Beylkin.10.1002/cpa.3160440202,Frediani.10.1080/00268976.2013.810793}, both scaling and wavelet coefficients are needed and they are therefore stored for each \ac{MW} node. As a result, each three dimensional node will contain some metadata (scale $s$, translation indices $l_x, l_y, l_z$, connectivity information about neighbors nodes, parent and children, etc...) and an array of $2^3 (k+1)^3$ coefficients: $(k+1)^3$ scaling coefficients and $(2^3-1)(k+1)^3$ wavelet coefficients.
+
+\section{The basic operations in the SCF iterations}
+
+We will here list the main operations involved in the \ac{SCF} procedure, with emphasis on those aspects which are relevant for an efficient parallelization. For a detailed description of the \ac{SCF} optimization using \acp{MW}, the reader is referred to a recently published article which describes the algorithm in detail.\cite{Jensen:2022gg}
+
+The starting point is an initial set of orthonormal orbitals which define a Slater determinant for the given problem. A density is computed and the corresponding operators ($J$ and $K$) are built. The Fock matrix is computed as in Eq.~\eqref{eq:fock-matrix-definition}, which requires the application of the kinetic operator ($T$), nuclear potential ($V_{\mathrm{nuc}}$), Coulomb ($J$) and exchange ($K$) operators on each occupied orbital. The argument for the application of the integral operator is assembled (the square bracket in Eq.~\eqref{eq:integral-SCF}). Then the integral operator is applied separately for each orbital and the cycle is iterated after an orthonormalization step. Algorithm \ref{alg:SCF-iter} depicts these main steps.
+
+\begin{algorithm*}
+  \caption{Pseudocode for a single self-consistent field iteration. Each step takes advantage of adaptivity and screening, as described in Sections~\ref{sec:localvsorb} and~\ref{sec:adaptivity-screening}.} 
+  \label{alg:SCF-iter}
+  \begin{algorithmic}[1]
+    \Procedure{SCF iteration}{$\lbrace \orbital_{i}^{[n]}\rbrace_{i=1}^{N_{\mathrm{occ}}}$, $\epsilon$}
+    
+    \State Build Coulomb operator: $$J^{[n]} =
+    \sum_i \left[\frac{1}{|\rvec - \rvec^\prime|} \star\left(\orbital_{i}^{*,[n]}\orbital_{i}^{[n]}\right)\right]$$
+    \Comment{See Section~\ref{sec:compute-J}}
+    \State Build and apply Exchange operator: $$K^{[n]}\orbital_{j}^{[n]} = \sum_i \orbital_{i}^{[n]} \left[\frac{1}{|\rvec - \rvec^\prime|} \star\left(\orbital_{i}^{*,[n]}\orbital_{j}^{[n]}\right)\right]$$
+    \Comment{See Section~\ref{sec:compute-K}}
+    \State Assemble Fock matrix elements: $$F_{ij}^{[n]} = \Braket{\orbital_{i}^{[n]} | T + V_{\mathrm{nuc}} + J^{[n]} - K^{[n]}| \orbital_{j}^{[n]}}$$
+    \Comment{See Sections~\ref{sec:compute-T} and~\ref{sec:compute-V}}
+    \State Assemble right-hand side: $$V^{[n]}\orbital_{i}^{[n]} - \sum_{j\neq i}^{N_{\mathrm{occ}}}F_{ij}^{[n]}\orbital_{j}^{[n]}$$
+    \Comment{See Section~\ref{sec:rhs}}
+    \State Update orbitals: $$\orbital_{i}^{[n+1]} = -2H^{\mu_{i}}\star\left[ V^{[n]}\orbital_{i}^{[n]} - \sum_{j\neq i}^{N_{\mathrm{occ}}}F_{ij}^{[n]}\orbital_{j}^{[n]}\right]$$
+    \Comment{See Section~\ref{sec:rhs}}
+    \State Accelerator and localization: A new set of orbitals is created using results from previous iterations and localization. This step is optional and does not need to be performed at each iteration.
+    \EndProcedure
+  \end{algorithmic}
+\end{algorithm*}
+
+The elementary mathematical operations required in each SCF iteration are:
+\begin{itemize}
+\item Projection of functions in a \ac{MW} representation, given their analytic form or a representation on an arbitrary grid.\footnote{As long as a function is \emph{algorithmically} known, that is, there exists an implementation that given a point in the domain, for example $\mathbb{R}^{3}$, returns the function value, then it is possible to obtain its \ac{MW} representation.} 
+\item Evaluation of the \ac{MW} representation of functions at a given point in space.
+\item Multiplication of a function by a number.
+\item Sum of two \ac{MW} functions.
+\item Product of two \ac{MW} functions.
+\item Computation of the overlap integral between two \ac{MW} functions.
+\item Application of a multiplicative operator, \emph{e.g.} a potential, on a \ac{MW} function.
+\item Evaluation of the first order derivative of a \ac{MW} function.
+\item Construction of the separated representation of the Poisson and Helmholtz kernels as \ac{MW} functions.
+\item Application of the Poisson or Helmholtz operators on a \ac{MW} function.
+\end{itemize}
+
+All these operations are provided by the MRCPP library\cite{mrcpp}. They must be composed to achieve a \ac{SCF} implementation, and they need to be integrated in a parallel framework to achieve good scaling and performance. In addition, the \ac{SCF} cycle requires schemes for orbital orthonormalization, rotation, and localization, Fock matrix diagonalization, history storage and utilization to enable convergence acceleration, using \emph{e.g.}~the \ac{KAIN} method.~\cite{Harrison2004-fs}
+
+\subsection{The kinetic operator $T$}
+\label{sec:compute-T}
+The application of the kinetic energy operator on a \ac{MW} function is formally not well defined due to the discontinuities in the basis.\cite{Anderson2019-bx} However, when adopting an integral reformulation of the \ac{SCF} equations, the kinetic energy operator is required only in the  expectation value expressions as in Eq.~\eqref{eq:fock-matrix-definition}, and as shown by \citeauthor{Anderson2019-bx}~\cite{Anderson2019-bx} the original definition of the first-order derivative by \citeauthor{Alpert:2002cx}~\cite{Alpert:2002cx} is able to deliver sufficient precision in this specific case. On the basis of this consideration, and for computational efficiency, the matrix elements of the Laplacian operator are computed as inner products of orbital gradients:
+\begin{equation}
+  \label{eq:kinetic-matrix}
+  T_{ij} = 
+  -\frac{1}{2} 
+  \Braket{\orbital_i | \nabla^2 \orbital_j} 
+  = 
+  \frac{1}{2} 
+  \Braket{\nabla \orbital_i | \nabla \orbital_j}.
+\end{equation}
+
+It is possible to avoid the kinetic energy operator altogether \cite{Jensen:2022gg}, but in practice this complicates the algorithm to the point where the direct computation as in Eq.~\eqref{eq:kinetic-matrix} is to be preferred for large systems.
+
+\subsection{The nuclear potential $V_{\mathrm{nuc}}$}
+\label{sec:compute-V}
+The nuclear potential consists of a sum of contributions from the different nuclei. As such, applying it to a given orbital can be performed in two ways.
+
+\begin{description}
+\item[apply-then-sum] The potential from each nucleus $\alpha$ is applied to each orbital and the results summed up over all nuclei:
+\begin{equation}
+  V_{\mathrm{nuc}} \orbital_j = \sum_{\alpha}^{N_{\mathrm{atoms}}} \left(V_{\alpha} \orbital_j\right),
+\end{equation} 
+\item[sum-then-apply] The sum over the nuclei is performed first, followed by the multiplication with the given orbital:
+\begin{equation}
+V_{\mathrm{nuc}} \orbital_j = \left(\sum_{\alpha}^{N_{\mathrm{atoms}}} V_{\alpha}\right) \orbital_j.
+\end{equation}
+\end{description}
+
+The first approach requires $N_{\mathrm{atoms}}\times N_{\mathrm{occ}}$ function multiplications, followed by a summation of $N_{\mathrm{atoms}}$ terms. It also needs memory for $N_{\mathrm{atoms}}\times N_{\mathrm{occ}}$ \ac{MW} functions. However, since these objects are relatively localized, their memory footprint is modest and can, in addition, be amortized by distributing objects across parallel processes. Furthermore, the function-function products can also be distributed across nodes and screened aggressively.
+
+The second approach requires a summation of $N_{\mathrm{atoms}}$ terms, followed by $N_{\mathrm{occ}}$ function multiplications. However, the total potential is no longer well-localized, as it describes the potential from all clamped nuclei, and it requires a large amount of memory storage. Storing the nuclear potential is wasteful: only its \ac{MW} nodes with non-zero overlap with the occupied orbitals will contribute to the final result.
+
+Despite these considerations, our present implementation uses the ``sum-then-apply" form. In the future we plan to try the first approach and also adapt the accuracy according to the electronic density and compare the performance between the two approaches.
+
+
+\subsection{The Coulomb potential $J$}\label{sec:compute-J}
+The Coulomb interaction can be expressed as:
+\begin{equation}
+    \begin{aligned}
+  J(\rvec) &= \sum_i \int \frac{\orbital^*_i(\rvec')\orbital_i(\rvec')}{|\rvec-\rvec'|} \, \mathrm{d}\rvec' =
+  \sum_i  \left[
+  \frac{1}{|\rvec-\rvec'|} \star 
+  \orbital^*_i\orbital_i
+  \right] =
+  \frac{1}{|\rvec-\rvec'|} \star 
+  \left[\sum_i 
+  \orbital^*_i\orbital_i
+  \right]
+    \end{aligned}
+\end{equation}
+where, as indicated by the last step, we can choose the order of the operations when constructing the Coulomb potential: either summing the orbital densities first and compute the potential of the total density (\textbf{sum-then-apply}), or, first computing the Coulomb potential of each individual orbital density and then sum the potentials (\textbf{apply-then-sum}). The electrostatic potential is in general a much smoother function than its corresponding density, which contains cusps at every nuclear site. It is thus desirable to avoid the explicit construction of the global density and instead gradually build a global potential by partial applications of the Poisson operator to subsets of orbital densities. This operation can also easily be distributed in parallel by assigning different subsets to different processes.
+
+The Poisson kernel is expressed in a separable form, within the requested precision, as a sum of Gaussian contributions.\cite{Beylkin.10.1016/j.acha.2005.01.003} Each Gaussian kernel is applied separately and the contributions are then added up. The separated representation is essential to achieve fast linear-scaling algorithms: on the one hand it brings down the formal scaling of the operator application for each node from $2^6 k^6$ to $M 2^4 k^4$, where $k$ is the polynomial order and $M$ is the separation rank; on the other hand the Gaussian contributions will range from wide ones (shallow \ac{MW} representation which couple long-range but at coarse scales) to narrow ones (deep \ac{MW} representation which couple short-range at all scales). In practice, most of the $M$ terms will be applied very efficiently and the separation between long-range and short-range interactions -- which is otherwise achieved through the \ac{FMM} -- is naturally included without extra effort.\cite{Frediani.10.1080/00268976.2013.810793, Beylkin.10.1016/j.acha.2007.01.001}
+
+Normally the potential is computed with the required precision in the entire space, and since it is long range, it will be relatively memory consuming.
+
+\subsection{The exchange potential $K$}\label{sec:compute-K}
+The construction and application of the exchange potential is the most computationally demanding part, because the exchange operator cannot be written as a simple multiplicative potential. A Coulomb potential must be constructed and applied for each orbital pair:
+
+\begin{equation}
+  K[\orbital_j] = \sum_i K_i[\orbital_j] = 
+  \sum_i \orbital_i(\rvec) \int \frac{\orbital^*_i(\rvec')\orbital_j(\rvec')}{|\rvec-\rvec'|} \, \mathrm{d}\rvec'
+  =
+  \sum_i \orbital_i(\rvec) \left[
+  \frac{1}{|\rvec-\rvec'|} \star 
+  \orbital^*_i\orbital_j
+  \right]
+\end{equation}
+Section \ref{Xscreen} provides a more detailed description of how these terms can be evaluated efficiently in a \ac{MRA} framework. 
+
+\subsection{Construction of the right-hand side and Helmholtz operator application}\label{sec:rhs}
+The central step in the SCF iteration is the application of the Helmholtz operator $H^{\mu}$ defined in Eq.~\eqref{eq:helmholtz-green} to the square bracket on the right-hand side in Eq.~\eqref{eq:integral-SCF}. The Helmholtz kernel depends on the orbital energy ($\mu_i = \sqrt{-2F_{ii}}$). As such, one needs to construct as many operators as there are occupied orbitals. Given the Fock matrix, each term within the square bracket in Eq.~\eqref{eq:integral-SCF} can be assembled with $O(N)$ formal operation count per orbital $\orbital_i$. Thus, the formation of the whole right-hand side for the entire set of orbitals formally scales as $O(N^{2})$. However, $\sum_{j \ne i}^{N_{\mathrm{occ}}} F_{ij} \orbital_j $ is a linear combination of orbitals and, as shown in Section~\ref{sec:localvsorb}, it can be performed efficiently with $O(N)$ operation count. Also the application of the exchange operator can be done essentially in $O(N)$ operations as shown in Sections \ref{Xscreen} and \ref{sec:screen}.
+
+Once the right-hand side is assembled, the application of the Helmholtz operator is practically identical to the Coulomb operator. The only difference is the actual expansion in Gaussians, which, thanks to the long-range exponential decay of the kernel, has more favorable scaling properties.\cite{Frediani.10.1080/00268976.2013.810793} 
+
+\bibliography{references}
+
+\end{document}
